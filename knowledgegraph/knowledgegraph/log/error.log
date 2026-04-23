@@ -1,0 +1,135 @@
+Internal Server Error: /queryrelationship/
+Traceback (most recent call last):
+  File "/home/wangsiyuan/anaconda3/envs/knowledge_graph/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/wangsiyuan/anaconda3/envs/knowledge_graph/lib/python3.8/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/./knowledgegraph/views.py", line 405, in query_relationship
+    relation_data = QueryRelationship_withnonode(relation_name)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/./knowledgegraph/views.py", line 196, in QueryRelationship_withnonode
+    relationship = str(result[0]['r'])
+IndexError: list index out of range
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /addnode/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /fuzzymatch/
+Internal Server Error: /queryrelationship/
+Traceback (most recent call last):
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 409, in query_relationship
+    relation_data = QueryRelationship_withnonode(relation_name)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 200, in QueryRelationship_withnonode
+    relationship = str(result[0]['r'])
+IndexError: list index out of range
+"POST /queryrelationship/ HTTP/1.1" 500 145
+Internal Server Error: /queryrelationship/
+Traceback (most recent call last):
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 410, in query_relationship
+    formatted_relation_data = format_relationship_data(relation_data)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 448, in format_relationship_data
+    start_node = rel.start_node
+AttributeError: 'str' object has no attribute 'start_node'
+Internal Server Error: /queryrelationship/
+Traceback (most recent call last):
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 410, in query_relationship
+    formatted_relation_data = format_relationship_data(relation_data)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 448, in format_relationship_data
+    start_node = rel.start_node
+AttributeError: 'str' object has no attribute 'start_node'
+"POST /queryrelationship/ HTTP/1.1" 500 145
+"POST /queryrelationship/ HTTP/1.1" 500 145
+Internal Server Error: /queryrelationship/
+Traceback (most recent call last):
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 406, in query_relationship
+    formatted_relation_data = format_relationship_data(relation_data)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 448, in format_relationship_data
+    start_node = rel.start_node
+AttributeError: 'str' object has no attribute 'start_node'
+"POST /queryrelationship/ HTTP/1.1" 500 145
+Internal Server Error: /queryrelationship/
+Traceback (most recent call last):
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/wangsiyuan/anaconda3/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 406, in query_relationship
+    formatted_relation_data = format_relationship_data(relation_data)
+  File "/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/views.py", line 448, in format_relationship_data
+    start_node = rel.start_node
+AttributeError: 'str' object has no attribute 'start_node'
+"POST /queryrelationship/ HTTP/1.1" 500 145
