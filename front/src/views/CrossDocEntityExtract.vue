@@ -137,11 +137,6 @@
           <el-descriptions-item label="关系类型">
             {{ result.relation.type || '未知' }}
           </el-descriptions-item>
-          <el-descriptions-item label="情感属性">
-            <el-tag :type="result.relation.sentiment === '积极' ? 'success' : result.relation.sentiment === '消极' ? 'danger' : 'info'">
-              {{ result.relation.sentiment || '未知' }}
-            </el-tag>
-          </el-descriptions-item>
         </el-descriptions>
       </div>
       
