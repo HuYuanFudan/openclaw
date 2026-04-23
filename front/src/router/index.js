@@ -9,6 +9,8 @@ import AllGraph from '@/views/AllGraph.vue';
 import Allmetaknowledge from '@/views/AllMetaknowledge.vue';
 import Addmetaknowdede from '@/views/AddMetaKnowledge.vue';
 import Formula from '@/views/formula.vue'
+import CrossDocEntityExtract from '@/views/CrossDocEntityExtract.vue'
+import EvidenceEnhancedDecision from '@/views/EvidenceEnhancedDecision.vue'
 const routes = [
   {
     path: '/home',
@@ -66,6 +68,16 @@ const routes = [
     path: '/formula',
     name: 'formula',
     component: Formula
+  },
+  {
+    path: '/cross-doc-extract',
+    name: 'cross-doc-extract',
+    component: CrossDocEntityExtract
+  },
+  {
+    path: '/evidence-decision',
+    name: 'evidence-decision',
+    component: EvidenceEnhancedDecision
   }
 ];
 const router = createRouter({
