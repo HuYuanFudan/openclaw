@@ -1,0 +1,58 @@
+user nginx;  # 指定 Nginx 用户
+worker_processes 1;  # 设置 worker 进程数，通常为 1，除非有特殊需求
+
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;  # 设置最大连接数
+}
+
+http {
+    include       mime.types;  # 包含文件类型定义
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    # 你可能需要配置你的虚拟主机所在的目录
+    include /etc/nginx/conf.d/*.conf;  # 或者修改为 /usr/local/nginx/conf/*.conf
+
+    # 这里是你提供的 server 配置块
+    server {
+        listen       80;
+        server_name  localhost;
+
+        root   /usr/local/nginx/html;  # 这里是 Vue 项目的静态文件路径
+
+        location / {
+            index  index.html index.htm;
+            try_files $uri $uri/ /index.html;  # Vue 路由配置，确保不会 404
+        }
+
+        # API 转发配置
+        location /api/ {
+            rewrite ^/api/(.*)$ /$1 break;  # Nginx 的 URI 重写
+            proxy_pass http://10.1.0.111:8888/;  # 后端 API 服务地址
+            proxy_redirect off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # 错误页面配置
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/local/nginx/html;  # 错误页面存放目录
+        }
+    }
+}
