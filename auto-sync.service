@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenClaw Auto Sync Service
+After=network.target
+
+[Service]
+Type=simple
+User=huyuan
+WorkingDirectory=/home/huyuan/openclaw
+ExecStart=/home/huyuan/openclaw/auto-sync.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
