@@ -41,12 +41,14 @@
             </template>
               <el-menu-item index="5-1" @click="showComponent('CrossDocEntityExtract')">跨文档实体关系抽取</el-menu-item>
           </el-sub-menu>
+          <!-- 证据决策功能已隐藏
           <el-sub-menu index="6">
             <template #title>
               <el-icon><circle-check /></el-icon>证据决策
             </template>
               <el-menu-item index="6-1" @click="showComponent('EvidenceEnhancedDecision')">证据增强决策</el-menu-item>
           </el-sub-menu>
+          -->
         </el-menu>
       </el-scrollbar>
     </el-aside>
@@ -91,7 +93,7 @@ import Allmetaknowledge from './AllMetaknowledge.vue';
 import AddMetaKnowledge from './AddMetaKnowledge.vue';
 import Formula from './formula.vue'
 import CrossDocEntityExtract from './CrossDocEntityExtract.vue'
-import EvidenceEnhancedDecision from './EvidenceEnhancedDecision.vue'
+// import EvidenceEnhancedDecision from './EvidenceEnhancedDecision.vue'
 export default {
   data() {
     return {
@@ -117,8 +119,8 @@ export default {
     Allmetaknowledge,
     AddMetaKnowledge,
     Formula,
-    CrossDocEntityExtract,
-    EvidenceEnhancedDecision
+    CrossDocEntityExtract
+    // EvidenceEnhancedDecision
   },
 };
 </script>
