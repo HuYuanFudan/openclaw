@@ -47,15 +47,14 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
-        'file': {
-            'level': 'ERROR',  # 捕获 ERROR 及以上级别日志
-            'class': 'logging.FileHandler',
-            'filename': '/home/wangsiyuan/wsy/financial_knowledgegraph_tool/knowledgegraph/knowledgegraph/log/error.log',  # 日志文件路径
+        'console': {
+            'level': 'ERROR',
+            'class': 'logging.StreamHandler',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['file'],
+            'handlers': ['console'],
             'level': 'ERROR',
             'propagate': True,
         },
@@ -63,7 +62,7 @@ LOGGING = {
 }
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [

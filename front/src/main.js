@@ -22,7 +22,6 @@ app.config.globalProperties.$http = axios;
 // 使用 Element Plus 和 Vue Router
 app.use(ElementPlus);
 app.use(router);  // 路由应该在此处
-app.use(axios);  // 可能不需要这个，已通过 `app.config.globalProperties.$http` 使用 axios
 
 // 挂载应用
 app.mount('#app');
