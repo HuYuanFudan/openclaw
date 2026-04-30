@@ -13,39 +13,51 @@
           <el-select
             v-model="form.entity1"
             filterable
-            remote
+            clearable
             reserve-keyword
             placeholder="请输入公司名称搜索"
-            :remote-method="searchEntity1"
-            :loading="loading1"
+            :filter-method="filterEntity1"
             style="width: 100%"
+            popper-class="company-select-dropdown"
+            @focus="onEntity1Focus"
+            @visible-change="onEntity1VisibleChange"
           >
             <el-option
-              v-for="item in entity1Options"
+              v-for="item in visibleEntity1Options"
               :key="item.value"
               :label="item.label"
               :value="item.value"
             />
+            <template #empty>
+              <span>无匹配结果</span>
+            </template>
           </el-select>
         </el-form-item>
-        
+
         <el-form-item label="实体2（公司）">
           <el-select
+            ref="entity2Select"
             v-model="form.entity2"
             filterable
-            remote
+            clearable
             reserve-keyword
-            placeholder="请输入公司名称搜索"
-            :remote-method="searchEntity2"
-            :loading="loading2"
+            placeholder="请选择或输入公司名称"
+            :filter-method="filterEntity2"
             style="width: 100%"
+            :disabled="!form.entity1"
+            popper-class="company-select-dropdown"
+            @focus="onEntity2Focus"
+            @visible-change="onEntity2VisibleChange"
           >
             <el-option
-              v-for="item in entity2Options"
+              v-for="item in visibleEntity2Options"
               :key="item.value"
               :label="item.label"
               :value="item.value"
             />
+            <template #empty>
+              <span>无匹配结果</span>
+            </template>
           </el-select>
         </el-form-item>
         
@@ -137,13 +149,16 @@
           <el-descriptions-item label="关系类型">
             {{ result.relation.type || '未知' }}
           </el-descriptions-item>
+          <el-descriptions-item v-if="result.relation.evidence" label="证据句">
+            {{ result.relation.evidence }}
+          </el-descriptions-item>
         </el-descriptions>
       </div>
       
       <el-divider />
       
-      <!-- 相关新闻 -->
-      <div class="news-section" v-if="result.newsList && result.newsList.length > 0">
+      <!-- 相关新闻 - 只有在有关系时才显示 -->
+      <div class="news-section" v-if="hasRelation && result.newsList && result.newsList.length > 0">
         <h3>相关新闻</h3>
         <div class="news-item">
           <h4 class="news-title">{{ result.newsList[0].title }}</h4>
@@ -155,10 +170,21 @@
           <div class="news-content-full">
             <p>{{ result.newsList[0].content }}</p>
           </div>
-          <el-link v-if="result.newsList[0].url" :href="result.newsList[0].url" target="_blank" type="primary">
-            <el-icon><link /></el-icon> 查看原文
+            <el-link v-if="result.newsList[0].url" :href="result.newsList[0].url" target="_blank" type="primary">
+            <el-icon><Link /></el-icon> 查看原文
           </el-link>
         </div>
+      </div>
+      
+      <!-- 无关系提示 -->
+      <div class="no-relation-section" v-if="!hasRelation && result.show">
+        <el-alert
+          title="未找到关系"
+          description="根据现有数据，这两家公司之间未找到明确的关系。"
+          type="info"
+          :closable="false"
+          show-icon
+        />
       </div>
     </el-card>
   </div>
@@ -185,14 +211,15 @@ export default {
         entity1: '',
         entity2: ''
       },
-      loading1: false,
-      loading2: false,
       submitting: false,
       addingToGraph: false,
       progressPercent: 0,
       progressStatus: '',
       entity1Options: [],
       entity2Options: [],
+      entity1VisibleCount: 10,
+      entity2VisibleCount: 10,
+      pageSize: 10,
       currentTripleIndex: 0,
       result: {
         show: false,
@@ -202,20 +229,14 @@ export default {
         entity1Name: '',
         entity2Name: ''
       },
-      // 真实案例数据
-      caseData: {
-        entity1: '爱迪特（秦皇岛）科技股份有限公司',
-        entity2: '科美诊断技术股份有限公司',
-        relation: '起诉',
-        source: '腾讯网',
-        title: '深圳迈瑞状告成都迈瑞、徐州迈瑞',
-        sentiment: '消极',
-        time: '2023-04-21 18:53:00',
-        url: 'https://new.qq.com/omn/20230421/20230421A08I1000.html',
-        abstract: '科美诊断向爱迪特发起诉讼。3月9日，科美诊断技术股份有限公司公开了与爱迪特（秦皇岛）科技股份有限公司等公司的商标诉讼进展。涉及科美诊断的7项商标，涉案金额3500万元。',
-        content: '近日，企查查数据显示，深圳迈瑞生物医疗电子股份有限公司与成都迈瑞医疗器械有限公司因不正当竞争纠纷立案、与徐州市迈瑞商贸有限公司因为侵害商标纠纷立案。而3月29日，据天眼查消息，深圳迈瑞生物医疗电子股份有限公司与大连迈瑞科医疗器械有限公司相关商标权权属、侵权纠纷一案于3月31日在大连市西岗区人民法院开庭。类似的商标纠纷，迈瑞每年都会有！不可否认的是"迈瑞"作为医疗器械一哥深圳迈瑞的核心标志，在国内和国际医疗设备这一相关领域，对研发、生产、销售、使用医疗设备的相关单位、人群造成了统一的不可分割的效益效果，产生了与深圳迈瑞产品不可分割的影响力，已成为中国驰名商标。疫情3年，IVD行业发展迅猛，IVD企业商标侵权纠纷也随之增多。2023年3月9日，IVD上市企业科美诊断发布关于涉及诉讼的公告，索赔3500万。'
-      }
+      companies: [],
+      relations: {},
+      news: {},
+      dataLoaded: false
     };
+  },
+  mounted() {
+    this.loadDataset();
   },
   computed: {
     currentTriple() {
@@ -223,147 +244,249 @@ export default {
         return { entity1: '', relation: '', entity2: '' };
       }
       return this.result.triples[this.currentTripleIndex];
+    },
+    hasRelation() {
+      if (!this.form.entity1 || !this.form.entity2) return false;
+      const rels = this.relations[this.form.entity1];
+      return !!(rels && rels[this.form.entity2]);
+    },
+    visibleEntity1Options() {
+      return this.entity1Options.slice(0, this.entity1VisibleCount);
+    },
+    visibleEntity2Options() {
+      return this.entity2Options.slice(0, this.entity2VisibleCount);
     }
   },
+
   methods: {
-    // 搜索实体1
-    async searchEntity1(query) {
-      if (query.length < 2) {
-        this.entity1Options = [];
-        return;
-      }
-      this.loading1 = true;
+    async loadDataset() {
       try {
-        const response = await axios.get(`http://10.176.22.62:8001/search_companies/?keyword=${encodeURIComponent(query)}`);
-        if (response.data.status === 'success') {
-          this.entity1Options = response.data.companies.map(company => ({
-            label: company.company_name,
-            value: company.credit_number || company.company_name
-          }));
-        } else {
-          this.entity1Options = this.getDefaultOptions(query);
-        }
+        const response = await axios.get('/cross_doc_dataset.json');
+        this.companies = response.data.companies || [];
+        this.relations = response.data.relations || {};
+        this.news = response.data.news || {};
+        this.dataLoaded = true;
       } catch (error) {
-        console.error('搜索实体1失败:', error);
-        this.entity1Options = this.getDefaultOptions(query);
-      } finally {
-        this.loading1 = false;
+        console.error('加载数据集失败:', error);
+        this.companies = [];
+        this.relations = {};
+        this.news = {};
       }
     },
-    
-    // 搜索实体2
-    async searchEntity2(query) {
-      if (query.length < 2) {
-        this.entity2Options = [];
-        return;
+
+    buildEntity1Default() {
+      return this.companies
+        .filter(name => Object.keys(this.relations[name] || {}).length > 0)
+        .slice(0, 100)
+        .map(name => ({ label: name, value: name }));
+    },
+
+    buildEntity2Default() {
+      const e1 = this.form.entity1;
+      if (!e1) return [];
+      const relMap = this.relations[e1] || {};
+      const relatedNames = Object.keys(relMap);
+      const related = relatedNames
+        .filter(n => n !== e1)
+        .map(n => ({
+          label: `${n} [${relMap[n].relation}]`,
+          value: n,
+          hasRelation: true
+        }));
+
+      const relatedSet = new Set(relatedNames);
+      const othersPool = this.companies.filter(n => n !== e1 && !relatedSet.has(n));
+      this.shuffleInPlace(othersPool);
+      const others = othersPool.map(n => ({ label: n, value: n, hasRelation: false }));
+
+      return [...related, ...others];
+    },
+
+    shuffleInPlace(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
       }
-      this.loading2 = true;
-      try {
-        const response = await axios.get(`http://10.176.22.62:8001/search_companies/?keyword=${encodeURIComponent(query)}`);
-        if (response.data.status === 'success') {
-          this.entity2Options = response.data.companies.map(company => ({
-            label: company.company_name,
-            value: company.credit_number || company.company_name
-          }));
-        } else {
-          this.entity2Options = this.getDefaultOptions(query);
+      return arr;
+    },
+
+    matchCompanies(query) {
+      const q = (query || '').trim();
+      if (!q) return [];
+      return this.companies
+        .filter(name => name.includes(q))
+        .map(name => ({ label: name, value: name }));
+    },
+
+    onEntity1Focus() {
+      if (!this.form.entity1) {
+        this.entity1Options = this.buildEntity1Default();
+        this.entity1VisibleCount = this.pageSize;
+      }
+    },
+
+    onEntity1VisibleChange(visible) {
+      if (visible) {
+        if (!this.form.entity1) {
+          this.entity1Options = this.buildEntity1Default();
         }
-      } catch (error) {
-        console.error('搜索实体2失败:', error);
-        this.entity2Options = this.getDefaultOptions(query);
-      } finally {
-        this.loading2 = false;
+        this.entity1VisibleCount = this.pageSize;
+        this.$nextTick(() => this.attachScrollListener('entity1'));
       }
     },
-    
-    getDefaultOptions(query) {
-      return [
-        { label: this.caseData.entity1, value: 'entity1' },
-        { label: this.caseData.entity2, value: 'entity2' },
-        { label: query + '有限公司', value: query },
-        { label: query + '科技股份有限公司', value: query + '_tech' }
-      ];
+
+    filterEntity1(query) {
+      const q = (query || '').trim();
+      this.entity1Options = q ? this.matchCompanies(q) : this.buildEntity1Default();
+      this.entity1VisibleCount = this.pageSize;
     },
-    
-    // 提交抽取请求
+
+    onEntity2Focus() {
+      if (!this.form.entity1) return;
+      if (!this.form.entity2) {
+        this.entity2Options = this.buildEntity2Default();
+        this.entity2VisibleCount = this.pageSize;
+      }
+    },
+
+    onEntity2VisibleChange(visible) {
+      if (visible && this.form.entity1) {
+        if (!this.form.entity2) {
+          this.entity2Options = this.buildEntity2Default();
+        }
+        this.entity2VisibleCount = this.pageSize;
+        this.$nextTick(() => this.attachScrollListener('entity2'));
+      }
+    },
+
+    filterEntity2(query) {
+      if (!this.form.entity1) return;
+      const q = (query || '').trim();
+      if (!q) {
+        this.entity2Options = this.buildEntity2Default();
+      } else {
+        const e1 = this.form.entity1;
+        const relMap = this.relations[e1] || {};
+        this.entity2Options = this.companies
+          .filter(n => n !== e1 && n.includes(q))
+          .map(n => ({
+            label: relMap[n] ? `${n} [${relMap[n].relation}]` : n,
+            value: n,
+            hasRelation: !!relMap[n]
+          }));
+      }
+      this.entity2VisibleCount = this.pageSize;
+    },
+
+    attachScrollListener(which) {
+      const popperClass = '.company-select-dropdown .el-scrollbar__wrap';
+      const poppers = document.querySelectorAll(popperClass);
+      const popper = poppers[poppers.length - 1];
+      if (!popper) return;
+      if (popper.__scrollBound) return;
+      popper.__scrollBound = true;
+      popper.addEventListener('scroll', () => {
+        const threshold = 20;
+        if (popper.scrollTop + popper.clientHeight >= popper.scrollHeight - threshold) {
+          if (which === 'entity1' && this.entity1VisibleCount < this.entity1Options.length) {
+            this.entity1VisibleCount += this.pageSize;
+          } else if (which === 'entity2' && this.entity2VisibleCount < this.entity2Options.length) {
+            this.entity2VisibleCount += this.pageSize;
+          }
+        }
+      });
+    },
+
+    findMatchedRecord(entity1, entity2) {
+      const relMap = this.relations[entity1] || {};
+      const info = relMap[entity2];
+
+      if (!info) {
+        return {
+          head_entity: entity1,
+          tail_entity: entity2,
+          pred_relation: '无关系',
+          hasRelation: false,
+          evidence: '',
+          news: null
+        };
+      }
+
+      return {
+        head_entity: entity1,
+        tail_entity: entity2,
+        pred_relation: info.relation,
+        hasRelation: true,
+        evidence: info.evidence || '',
+        news: info.news || null
+      };
+    },
+
     async submitExtract() {
       if (!this.form.entity1 || !this.form.entity2) {
         this.$message.warning('请选择两个实体');
         return;
       }
-      
       if (this.form.entity1 === this.form.entity2) {
         this.$message.warning('请选择两个不同的实体');
         return;
       }
-      
+
       this.submitting = true;
       this.progressPercent = 0;
       this.progressStatus = '';
       this.result.show = false;
       this.currentTripleIndex = 0;
-      
-      // 模拟进度条
+
       const progressInterval = setInterval(() => {
         if (this.progressPercent < 90) {
           this.progressPercent += 10;
         }
-      }, 300);
-      
-      try {
-        const response = await axios.post('http://10.176.22.62:8001/cross_doc_extract/', {
-          entity1: this.form.entity1,
-          entity2: this.form.entity2
-        });
-        
+      }, 200);
+
+      const matched = this.findMatchedRecord(this.form.entity1, this.form.entity2);
+
+      setTimeout(() => {
         clearInterval(progressInterval);
         this.progressPercent = 100;
         this.progressStatus = 'success';
-        
-        if (response.data.status === 'success') {
-          this.processResult(response.data);
+
+        if (matched.hasRelation) {
+          const n = matched.news;
+          this.processResult({
+            status: 'success',
+            triples: [{
+              entity1: matched.head_entity,
+              relation: matched.pred_relation,
+              entity2: matched.tail_entity
+            }],
+            relation: { type: matched.pred_relation, evidence: matched.evidence },
+            news_list: n ? [{
+              title: n.title,
+              source: n.source,
+              publish_time: n.time,
+              abstract: n.abstract,
+              content: n.content,
+              url: n.url
+            }] : [],
+            entity1_name: matched.head_entity,
+            entity2_name: matched.tail_entity
+          });
         } else {
-          throw new Error(response.data.message || '抽取失败');
+          this.processResult({
+            status: 'success',
+            triples: [],
+            relation: null,
+            news_list: [],
+            entity1_name: this.form.entity1,
+            entity2_name: this.form.entity2
+          });
         }
-      } catch (error) {
-        clearInterval(progressInterval);
-        console.error('抽取请求失败:', error);
-        
-        this.progressPercent = 100;
-        this.progressStatus = 'success';
-        
-        // 使用真实案例数据
-        this.processResult({
-          status: 'success',
-          triples: [{
-            entity1: this.caseData.entity1,
-            relation: this.caseData.relation,
-            entity2: this.caseData.entity2
-          }],
-          relation: {
-            type: this.caseData.relation,
-            sentiment: this.caseData.sentiment
-          },
-          news_list: [{
-            title: this.caseData.title,
-            source: this.caseData.source,
-            publish_time: this.caseData.time,
-            abstract: this.caseData.abstract,
-            content: this.caseData.content,
-            url: this.caseData.url
-          }],
-          entity1_name: this.caseData.entity1,
-          entity2_name: this.caseData.entity2
-        });
-        
-        this.$message.success('抽取完成');
-      } finally {
-        setTimeout(() => {
-          this.submitting = false;
-        }, 500);
-      }
+
+        setTimeout(() => { this.submitting = false; }, 300);
+      }, 600);
     },
-    
+
     processResult(data) {
       this.result = {
         show: true,
@@ -374,30 +497,21 @@ export default {
         entity2Name: data.entity2_name || this.form.entity2
       };
     },
-    
-    // 上一个三元组
+
     prevTriple() {
-      if (this.currentTripleIndex > 0) {
-        this.currentTripleIndex--;
-      }
+      if (this.currentTripleIndex > 0) this.currentTripleIndex--;
     },
-    
-    // 下一个三元组
+
     nextTriple() {
-      if (this.currentTripleIndex < this.result.triples.length - 1) {
-        this.currentTripleIndex++;
-      }
+      if (this.currentTripleIndex < this.result.triples.length - 1) this.currentTripleIndex++;
     },
-    
-    // 将当前三元组加入图谱
+
     async addCurrentToGraph() {
       this.addingToGraph = true;
-      
       try {
         const response = await axios.post('http://10.176.22.62:8001/add_triples_to_graph/', {
           triples: [this.currentTriple]
         });
-        
         if (response.data.status === 'success') {
           this.$message.success('成功添加三元组到图谱');
         } else {
@@ -410,13 +524,14 @@ export default {
         this.addingToGraph = false;
       }
     },
-    
-    // 重置表单
+
     resetForm() {
       this.form.entity1 = '';
       this.form.entity2 = '';
       this.entity1Options = [];
       this.entity2Options = [];
+      this.entity1VisibleCount = this.pageSize;
+      this.entity2VisibleCount = this.pageSize;
       this.result.show = false;
       this.result.relation = null;
       this.result.triples = [];
@@ -647,5 +762,42 @@ h1 {
 
 :deep(.el-descriptions__content) {
   background-color: #ffffff;
+}
+
+/* 无关系提示样式 */
+.no-relation-section {
+  margin-top: 20px;
+}
+
+/* 公司选择下拉列表样式 - 支持滚动查看更多 */
+:deep(.company-select-dropdown) {
+  max-height: 320px;
+}
+
+:deep(.company-select-dropdown .el-scrollbar__wrap) {
+  max-height: 320px;
+}
+
+:deep(.company-select-dropdown .el-select-dropdown__list) {
+  max-height: 320px;
+  padding: 6px 0;
+}
+
+:deep(.company-select-dropdown .el-select-dropdown__item) {
+  padding: 8px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-all;
+}
+
+:deep(.company-select-dropdown .el-select-dropdown__item:hover) {
+  background-color: #f5f7fa;
+}
+
+:deep(.company-select-dropdown .el-select-dropdown__item.selected) {
+  background-color: #ecf5ff;
+  color: #409eff;
+  font-weight: 600;
 }
 </style>
