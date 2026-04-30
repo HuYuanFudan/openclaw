@@ -133,7 +133,7 @@
             size="small"
             @click="showPaths = !showPaths"
           >
-            <el-icon><view /></el-icon>
+            <el-icon><View /></el-icon>
             {{ showPaths ? '隐藏' : '查看' }}时序路径证据 ({{ result.paths.length }}条)
           </el-button>
         </div>
