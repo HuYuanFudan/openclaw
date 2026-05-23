@@ -16,6 +16,10 @@ from rest_framework import status
 from .serializers import MetaKnowledgeSerializer
 from rest_framework import viewsets
 from django.shortcuts import render
+from .relation_extractor import RelationExtractor
+
+# 初始化关系抽取器
+extractor = RelationExtractor()
 
 def index(request):
     return render(request, 'index.html')
@@ -549,12 +553,13 @@ def fmatexcel(request):
             company_name = body.get('companyName', '').strip()
             if not company_name:
                 return JsonResponse({'status': 'error', 'message': '公司名称不能为空'}, status=400)
-            query = f'''
+            query = """
             MATCH (n:Company)
-            WHERE n.`公司中文名称` CONTAINS "{company_name}" OR n.`曾用名` CONTAINS "{company_name}"
+            WHERE coalesce(n.`公司中文名称`, '') CONTAINS $keyword
+               OR coalesce(n.`公司曾用名`, '') CONTAINS $keyword
             RETURN n
-            '''
-            result = graph.run(query).data()
+            """
+            result = graph.run(query, keyword=company_name).data()
             if not result:
                 return JsonResponse({'status': 'error', 'message': '未找到匹配的公司'}, status=400)
 
@@ -725,12 +730,13 @@ def fuzzymatch(request):
             company_name = body.get('companyName', '').strip()
             if not company_name:
                 return JsonResponse({'error': '公司名称不能为空'}, status=400)
-            query = f'''
+            query = """
             MATCH (n:Company)
-            WHERE n.`公司中文名称` CONTAINS "{company_name}" OR n.`曾用名` CONTAINS "{company_name}"
+            WHERE coalesce(n.`公司中文名称`, '') CONTAINS $keyword
+               OR coalesce(n.`公司曾用名`, '') CONTAINS $keyword
             RETURN n
-            '''
-            result = graph.run(query).data()
+            """
+            result = graph.run(query, keyword=company_name).data()
             companies = []
             for record in result:
                 company = record['n']
@@ -744,3 +750,159 @@ def fuzzymatch(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': '请求方法不正确'}, status=400)
+
+class ExtractRelationView(APIView):
+    """
+    新闻关系提取API接口
+    从新闻文本中自动提取公司关系并保存到数据集
+    """
+    permission_classes = []
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            
+            # 验证必要字段
+            required_fields = ['title', 'source', 'time', 'url', 'abstract', 'content']
+            for field in required_fields:
+                if field not in data:
+                    return Response(
+                        {'status': 'error', 'message': f'缺少必要字段: {field}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            news = {
+                'title': data['title'],
+                'source': data['source'],
+                'time': data['time'],
+                'url': data['url'],
+                'abstract': data.get('abstract', ''),
+                'content': data.get('content', '')
+            }
+            
+            # 使用关系抽取器提取关系
+            relations = extractor.extract_from_news(news)
+            
+            if not relations:
+                return Response({
+                    'status': 'success',
+                    'message': '未识别到公司关系',
+                    'extracted_relations': []
+                }, status=status.HTTP_200_OK)
+            
+            # 保存提取的关系
+            for rel in relations:
+                extractor.add_relation(
+                    company1=rel['company1'],
+                    company2=rel['company2'],
+                    relation=rel['relation'],
+                    evidence=rel['evidence'],
+                    news=rel['news']
+                )
+            
+            return Response({
+                'status': 'success',
+                'message': f'成功提取并保存 {len(relations)} 条关系',
+                'extracted_relations': relations
+            }, status=status.HTTP_201_CREATED)
+            
+        except json.JSONDecodeError:
+            return Response(
+                {'status': 'error', 'message': '请求体不是有效的 JSON 格式'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class QueryRelationsView(APIView):
+    """
+    查询公司关系API接口
+    """
+    permission_classes = []
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            company_name = data.get('company_name', '')
+            
+            if not company_name:
+                return Response(
+                    {'status': 'error', 'message': '公司名称不能为空'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            relations = extractor.get_relations_by_company(company_name)
+            
+            return Response({
+                'status': 'success',
+                'company': company_name,
+                'relations': relations
+            }, status=status.HTTP_200_OK)
+            
+        except json.JSONDecodeError:
+            return Response(
+                {'status': 'error', 'message': '请求体不是有效的 JSON 格式'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class GetAllCompaniesView(APIView):
+    """
+    获取所有公司列表API接口
+    """
+    permission_classes = []
+    
+    def get(self, request):
+        try:
+            companies = extractor.get_all_companies()
+            return Response({
+                'status': 'success',
+                'companies': companies
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class AddCompanyView(APIView):
+    """
+    添加新公司API接口
+    """
+    permission_classes = []
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            company_name = data.get('company_name', '').strip()
+            
+            if not company_name:
+                return Response(
+                    {'status': 'error', 'message': '公司名称不能为空'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            extractor.add_new_company(company_name)
+            
+            return Response({
+                'status': 'success',
+                'message': f'公司 "{company_name}" 已成功添加'
+            }, status=status.HTTP_201_CREATED)
+            
+        except json.JSONDecodeError:
+            return Response(
+                {'status': 'error', 'message': '请求体不是有效的 JSON 格式'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -16,7 +16,17 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from . import views
-from .views import MyTokenObtainPairView, AddNodeView, DeleteNodeView, AddNodeExcelView, AddRelationshipExcelView
+from .views import (
+    MyTokenObtainPairView, 
+    AddNodeView, 
+    DeleteNodeView, 
+    AddNodeExcelView, 
+    AddRelationshipExcelView,
+    ExtractRelationView,
+    QueryRelationsView,
+    GetAllCompaniesView,
+    AddCompanyView
+)
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -39,6 +49,11 @@ urlpatterns = [
     path('meta/', include(router.urls)),
     path('fmatexcel/', views.fmatexcel, name='fmtexcel'),
     path('qynodedtil/', views.qynodedtil, name='qynodedtil'),
+    # 新闻关系提取API
+    path('extract_relation/', ExtractRelationView.as_view(), name='extract_relation'),
+    path('query_relations/', QueryRelationsView.as_view(), name='query_relations'),
+    path('get_companies/', GetAllCompaniesView.as_view(), name='get_companies'),
+    path('add_company/', AddCompanyView.as_view(), name='add_company'),
     # path('meta/create_meta_knowledge/', views.MetaKnowledgeViewSet.as_view({'post': 'create_meta_knowledge'}), name='create_meta_knowledge'),
 ] + router.urls
 

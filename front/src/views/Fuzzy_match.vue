@@ -73,6 +73,7 @@ export default {
         });
         this.companyResults = response.data.companies;
       } catch (error) {
+        this.companyResults = [];
         console.error('Error:', error);
       }
     },
