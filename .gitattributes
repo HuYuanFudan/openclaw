@@ -1,1 +1,6 @@
 *.csv filter=lfs diff=lfs merge=lfs -text
+kg_data_report.json filter=lfs diff=lfs merge=lfs -text
+kg_detailed_report.json filter=lfs diff=lfs merge=lfs -text
+kg_financial_risk.json filter=lfs diff=lfs merge=lfs -text
+kg_universal_scan.json filter=lfs diff=lfs merge=lfs -text
+front/src/data/kg_report.js filter=lfs diff=lfs merge=lfs -text

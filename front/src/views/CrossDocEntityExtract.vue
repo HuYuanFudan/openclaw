@@ -70,6 +70,21 @@
           >
             开始抽取
           </el-button>
+
+          <el-upload
+            class="upload-demo"
+            action="#"
+            :show-file-list="false"
+            :auto-upload="false"
+            :on-change="handleFileUpload"
+            accept=".json,.txt,.md"
+            style="display: inline-block; margin-left: 12px; margin-right: 12px;"
+          >
+            <el-button type="success" :loading="importingNews">
+              导入新闻
+            </el-button>
+          </el-upload>
+
           <el-button @click="resetForm">重置</el-button>
         </el-form-item>
       </el-form>
@@ -212,6 +227,7 @@ export default {
         entity2: ''
       },
       submitting: false,
+      importingNews: false,
       addingToGraph: false,
       progressPercent: 0,
       progressStatus: '',
@@ -246,6 +262,16 @@ export default {
       return this.result.triples[this.currentTripleIndex];
     },
     hasRelation() {
+      // 优先检查当前结果中是否有有效关系（用于导入新闻模式）
+      if (this.result && this.result.relation && this.result.relation.type) {
+        return this.result.relation.type !== '无关系';
+      }
+      // 备选检查当前三元组（导入新闻时会设置）
+      if (this.result && this.result.triples && this.result.triples.length > 0) {
+        const currentTriple = this.result.triples[this.currentTripleIndex];
+        return currentTriple && currentTriple.relation && currentTriple.relation !== '无关系';
+      }
+      // 最后检查全局数据集（用于手动查询模式）
       if (!this.form.entity1 || !this.form.entity2) return false;
       const rels = this.relations[this.form.entity1];
       return !!(rels && rels[this.form.entity2]);
@@ -537,6 +563,110 @@ export default {
       this.result.triples = [];
       this.result.newsList = [];
       this.currentTripleIndex = 0;
+    },
+
+    async handleFileUpload(file) {
+      if (!file || !file.raw) return;
+
+      this.importingNews = true;
+      try {
+        const fileContent = await this.readFile(file.raw);
+        let newsData;
+
+        // Try parsing JSON first, otherwise assume markdown/text
+        if (file.name.endsWith('.json')) {
+          newsData = JSON.parse(fileContent);
+        } else {
+          // A simple text/markdown parsing to construct the required fields
+          // Fallback parsing strategy
+          newsData = {
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            source: "上传导入文件",
+            time: new Date().toISOString().split('T')[0],
+            url: "",
+            abstract: fileContent.substring(0, 200) + "...",
+            content: fileContent
+          };
+        }
+
+        // Validate the structure
+        const required_fields = ['title', 'source', 'time', 'url', 'abstract', 'content'];
+        for (const field of required_fields) {
+            if (!(field in newsData)) {
+                newsData[field] = "";
+            }
+        }
+        if (!newsData.title) newsData.title = "未知标题";
+
+        this.$message.info(`正在分析新闻: ${newsData.title}...`);
+
+        const response = await axios.post('http://10.176.22.62:8001/extract_relation/', newsData, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.data.status === 'success') {
+          const relations = response.data.extracted_relations;
+          this.$message.success(response.data.message || `成功提取 ${relations.length} 条关系`);
+
+          if (relations.length > 0) {
+            // Transform and display the first extracted relation directly in our results
+            const firstRel = relations[0];
+
+            // If they are valid extracted entities, set them to form and update options
+            if (!this.companies.includes(firstRel.company1)) this.companies.push(firstRel.company1);
+            if (!this.companies.includes(firstRel.company2)) this.companies.push(firstRel.company2);
+
+            // Update relation mapping
+            if (!this.relations[firstRel.company1]) this.relations[firstRel.company1] = {};
+            this.relations[firstRel.company1][firstRel.company2] = {
+              relation: firstRel.relation,
+              evidence: firstRel.evidence,
+              news: firstRel.news
+            };
+
+            this.form.entity1 = firstRel.company1;
+            this.form.entity2 = firstRel.company2;
+
+            this.processResult({
+              status: 'success',
+              triples: [{
+                entity1: firstRel.company1,
+                relation: firstRel.relation,
+                entity2: firstRel.company2
+              }],
+              relation: { type: firstRel.relation, evidence: firstRel.evidence },
+              news_list: [{
+                title: newsData.title,
+                source: newsData.source,
+                publish_time: newsData.time,
+                abstract: newsData.abstract,
+                content: newsData.content,
+                url: newsData.url
+              }],
+              entity1_name: firstRel.company1,
+              entity2_name: firstRel.company2
+            });
+          } else {
+             this.$message.warning("未能从新闻中提取到公司实体关系。");
+          }
+        } else {
+          this.$message.error(response.data.message || '提取失败');
+        }
+      } catch (error) {
+        console.error('导入新闻失败:', error);
+        this.$message.error('导入新闻并提取关系失败');
+      } finally {
+        this.importingNews = false;
+      }
+    },
+
+    readFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+      });
     }
   }
 };

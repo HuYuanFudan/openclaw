@@ -2207,14 +2207,21 @@ export default {
     drawBarChart(ref, data, opts = {}) {
       const el = this.$refs[ref];
       if (!el) return;
-      const svg = d3.select(el);
-      svg.selectAll('*').remove();
-      const width = el.clientWidth || 360;
+      // 清空容器，并创建一个真正的 <svg> 元素作为 SVG 画布
+      // （不能直接把 SVG 子元素 append 到 <div>，否则浏览器不会按 SVG 渲染，文字会平铺成一坨）
+      el.innerHTML = '';
+      const svg = d3.select(el).append('svg');
+      // 取父级容器宽度（el-card body），确保 svg 有足够画布
+      const parent = el.parentElement;
+      const rect = parent ? parent.getBoundingClientRect() : null;
+      const width = Math.max(280, (rect ? rect.width : 0) - 8);
       const height = opts.height || Math.max(160, data.length * 22);
-      svg.attr('width', width).attr('height', height);
+      svg.attr('width', width).attr('height', height)
+        .style('display', 'block')
+        .attr('viewBox', `0 0 ${width} ${height}`);
       const margin = { top: 8, right: 60, bottom: 8, left: opts.labelWidth || 90 };
-      const innerW = width - margin.left - margin.right;
-      const innerH = height - margin.top - margin.bottom;
+      const innerW = Math.max(80, width - margin.left - margin.right);
+      const innerH = Math.max(80, height - margin.top - margin.bottom);
       const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
       const max = d3.max(data, d => d.count) || 1;
       const x = d3.scaleLinear().domain([0, max]).range([0, innerW]);

@@ -11,6 +11,7 @@ import Addmetaknowdede from '@/views/AddMetaKnowledge.vue';
 import Formula from '@/views/formula.vue'
 import CrossDocEntityExtract from '@/views/CrossDocEntityExtract.vue'
 import EvidenceEnhancedDecision from '@/views/EvidenceEnhancedDecision.vue'
+import KnowledgeGraphTest from '@/views/KnowledgeGraphTest.vue'
 const routes = [
   {
     path: '/home',
@@ -78,6 +79,11 @@ const routes = [
     path: '/evidence-decision',
     name: 'evidence-decision',
     component: EvidenceEnhancedDecision
+  },
+  {
+    path: '/kg-test',
+    name: 'kg-test',
+    component: KnowledgeGraphTest
   }
 ];
 const router = createRouter({

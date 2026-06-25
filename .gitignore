@@ -56,3 +56,5 @@ dist/
 
 # Other
 .DS_Store
+.claude/
+front_code.txt
