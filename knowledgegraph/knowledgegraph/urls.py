@@ -25,7 +25,8 @@ from .views import (
     ExtractRelationView,
     QueryRelationsView,
     GetAllCompaniesView,
-    AddCompanyView
+    AddCompanyView,
+    GraphStatsView
 )
 from rest_framework.routers import DefaultRouter
 
@@ -54,6 +55,7 @@ urlpatterns = [
     path('query_relations/', QueryRelationsView.as_view(), name='query_relations'),
     path('get_companies/', GetAllCompaniesView.as_view(), name='get_companies'),
     path('add_company/', AddCompanyView.as_view(), name='add_company'),
+    path('graph_stats/', GraphStatsView.as_view(), name='graph_stats'),
     # path('meta/create_meta_knowledge/', views.MetaKnowledgeViewSet.as_view({'post': 'create_meta_knowledge'}), name='create_meta_knowledge'),
 ] + router.urls
 

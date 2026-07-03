@@ -906,3 +906,131 @@ class AddCompanyView(APIView):
                 {'status': 'error', 'message': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class GraphStatsView(APIView):
+    """
+    获取知识图谱核心统计指标
+    """
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            # 1. 总节点数 / 总关系数
+            total_nodes = graph.run("MATCH (n) RETURN count(n) AS c").data()[0]["c"]
+            total_rels = graph.run("MATCH ()-[r]->() RETURN count(r) AS c").data()[0]["c"]
+
+            # 2. 节点标签分布
+            label_rows = graph.run("""
+                MATCH (n)
+                UNWIND labels(n) AS label
+                RETURN label, count(*) AS cnt
+                ORDER BY cnt DESC
+            """).data()
+            node_type_distribution = {row["label"]: row["cnt"] for row in label_rows}
+
+            # 3. 关系类型分布
+            rel_rows = graph.run("""
+                MATCH ()-[r]->()
+                RETURN type(r) AS relType, count(*) AS cnt
+                ORDER BY cnt DESC
+            """).data()
+            relationship_distribution = {row["relType"]: row["cnt"] for row in rel_rows}
+
+            # 4. 公司相关统计
+            company_count = graph.run("MATCH (n:Company) RETURN count(n) AS c").data()[0]["c"]
+
+            # 5. 上市公司判断：存在 A股证券代码 / 证券代码 / 股票简称 任一属性视为上市公司
+            listed_attrs = ["A股证券代码", "证券代码", "股票简称"]
+            listed_where = " OR ".join([f"n.`{a}` IS NOT NULL" for a in listed_attrs])
+            listed_count = graph.run(f"""
+                MATCH (n:Company)
+                WHERE {listed_where}
+                RETURN count(n) AS c
+            """).data()[0]["c"]
+            unlisted_count = max(0, company_count - listed_count)
+
+            # 6. 行业分布：依次尝试 行业、所属行业、主营业务、公司行业 属性
+            #    对主营业务文本按关键词归类，避免长文本导致图表无法展示
+            industry_distribution = []
+            industry_fields = ["行业", "所属行业", "主营业务", "公司行业"]
+            raw_rows = []
+            for field in industry_fields:
+                rows = graph.run(f"""
+                    MATCH (n:Company)
+                    WHERE n.`{field}` IS NOT NULL AND n.`{field}` <> ''
+                    RETURN n.`{field}` AS name, count(*) AS cnt
+                    ORDER BY cnt DESC
+                """).data()
+                if rows:
+                    raw_rows = rows
+                    break
+
+            if raw_rows:
+                # 行业关键词映射（按优先级匹配）
+                INDUSTRY_KEYWORDS = [
+                    ("医药生物", ["医药", "药品", "疫苗", "医疗器械", "医疗", "生物科技", "生物制药", "中医药", "化学药"]),
+                    ("房地产", ["房地产", "房地产开发", "商业地产", "住宅开发", "物业管理", "住房租赁"]),
+                    ("电子", ["电子", "电路板", "半导体", "芯片", "集成电路", "LED", "显示面板", "被动元件"]),
+                    ("汽车", ["汽车", "汽车零部件", "整车", "新能源汽车", "动力电池", "汽车电子"]),
+                    ("金融", ["银行", "证券", "保险", "金融", "信托", "基金", "期货", "资产管理", "融资租赁"]),
+                    ("互联网", ["互联网", "软件", "信息技术", "网络", "电子商务", "大数据", "云计算", "人工智能"]),
+                    ("石油化工", ["石油", "化工", "化学", "石化", "精细化工", "基础化工", "化工新材料"]),
+                    ("机械设备", ["机械", "设备", "专用设备", "通用设备", "自动化设备", "工程机械", "重型机械"]),
+                    ("建筑建材", ["建筑", "建材", "装饰", "装修", "水泥", "玻璃", "陶瓷", "管材", "防水材料"]),
+                    ("通信", ["通信", "通讯", "电信", "5G", "光通信", "通信设备"]),
+                    ("家电", ["家电", "家用电器", "空调", "冰箱", "洗衣机", "厨电", "小家电"]),
+                    ("交通运输", ["交通运输", "物流", "快递", "航运", "港口", "机场", "铁路", "公路"]),
+                    ("公用事业", ["公用事业", "电力", "水务", "燃气", "供热", "环保", "新能源发电"]),
+                    ("新能源", ["新能源", "光伏", "风电", "锂电池", "储能", "氢能源", "核电"]),
+                    ("食品饮料", ["食品", "饮料", "白酒", "啤酒", "乳制品", "调味品", "农产品", "粮油"]),
+                    ("金属", ["钢铁", "有色金属", "金属", "稀土", "磁性材料", "合金"]),
+                    ("纺织服装", ["纺织", "服装", "服饰", "面料", "纱线", "印染"]),
+                    ("传媒", ["传媒", "广告", "文化", "影视", "游戏", "出版", "动漫"]),
+                    ("商贸零售", ["零售", "批发", "商贸", "百货", "超市", "便利店", "电商"]),
+                ]
+
+                def classify_industry(text):
+                    if not text:
+                        return "其他"
+                    text = str(text)
+                    for industry, keywords in INDUSTRY_KEYWORDS:
+                        for kw in keywords:
+                            if kw in text:
+                                return industry
+                    return "其他"
+
+                from collections import Counter
+                counter = Counter()
+                for row in raw_rows:
+                    category = classify_industry(row["name"])
+                    counter[category] += row["cnt"]
+
+                industry_distribution = [
+                    {"name": name, "count": count}
+                    for name, count in counter.most_common(15)
+                ]
+
+            # 有行业信息的公司总数（用于计算行业占比）
+            industry_total = sum(item["count"] for item in industry_distribution)
+
+            return Response({
+                "status": "success",
+                "totalNodes": total_nodes,
+                "totalRelationships": total_rels,
+                "companyCount": company_count,
+                "listedCount": listed_count,
+                "unlistedCount": unlisted_count,
+                "industryTotal": industry_total,
+                "nodeTypeDistribution": node_type_distribution,
+                "relationshipDistribution": relationship_distribution,
+                "industryDistribution": industry_distribution
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'status': 'error', 'message': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

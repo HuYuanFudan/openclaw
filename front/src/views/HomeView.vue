@@ -31,22 +31,23 @@
           </el-sub-menu>
           <el-sub-menu index="4">
             <template #title>
-              <el-icon><setting /></el-icon>其他
+              <el-icon><document /></el-icon>跨文档抽取
             </template>
-              <el-menu-item index="4-1" @click="showComponent('subgraph')">查询子图</el-menu-item>
+              <el-menu-item index="4-1" @click="showComponent('CrossDocEntityExtract')">跨文档实体关系抽取</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="5">
             <template #title>
-              <el-icon><document /></el-icon>跨文档抽取
+              <el-icon><circle-check /></el-icon>知识图谱统计
             </template>
-              <el-menu-item index="5-1" @click="showComponent('CrossDocEntityExtract')">跨文档实体关系抽取</el-menu-item>
+              <el-menu-item index="5-1" @click="showComponent('KnowledgeGraphTestStats')">实体分布统计</el-menu-item>
+              <el-menu-item index="5-2" @click="showComponent('KnowledgeGraphTestRisk')">图谱金融风险知识</el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="6">
-            <template #title>
-              <el-icon><circle-check /></el-icon>测试
-            </template>
-              <el-menu-item index="6-1" @click="showComponent('KnowledgeGraphTest')">知识图谱功能测试</el-menu-item>
-          </el-sub-menu>
+          <el-menu-item index="6" @click="showComponent('KnowledgeGraphTestBrowse')">
+            <el-icon><grid /></el-icon>图谱浏览与性能
+          </el-menu-item>
+          <el-menu-item index="7" @click="showComponent('KnowledgeGraphTestImport')">
+            <el-icon><upload /></el-icon>数据导入与抽取
+          </el-menu-item>
           <!-- 证据决策功能已隐藏
           <el-sub-menu index="6">
             <template #title>
@@ -101,6 +102,29 @@ import Formula from './formula.vue'
 import CrossDocEntityExtract from './CrossDocEntityExtract.vue'
 import KnowledgeGraphTest from './KnowledgeGraphTest.vue'
 // import EvidenceEnhancedDecision from './EvidenceEnhancedDecision.vue'
+
+// 创建带初始 tab 的 KnowledgeGraphTest 包装组件
+const KnowledgeGraphTestStats = {
+  name: 'KnowledgeGraphTestStats',
+  extends: KnowledgeGraphTest,
+  props: { initialTab: { type: String, default: 'stats' } }
+};
+const KnowledgeGraphTestRisk = {
+  name: 'KnowledgeGraphTestRisk',
+  extends: KnowledgeGraphTest,
+  props: { initialTab: { type: String, default: 'risk' } }
+};
+const KnowledgeGraphTestBrowse = {
+  name: 'KnowledgeGraphTestBrowse',
+  extends: KnowledgeGraphTest,
+  props: { initialTab: { type: String, default: 'browse' } }
+};
+const KnowledgeGraphTestImport = {
+  name: 'KnowledgeGraphTestImport',
+  extends: KnowledgeGraphTest,
+  props: { initialTab: { type: String, default: 'import-extract' } }
+};
+
 export default {
   data() {
     return {
@@ -127,7 +151,11 @@ export default {
     AddMetaKnowledge,
     Formula,
     CrossDocEntityExtract,
-    KnowledgeGraphTest
+    KnowledgeGraphTest,
+    KnowledgeGraphTestStats,
+    KnowledgeGraphTestRisk,
+    KnowledgeGraphTestBrowse,
+    KnowledgeGraphTestImport
     // EvidenceEnhancedDecision
   },
 };

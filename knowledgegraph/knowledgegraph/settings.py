@@ -26,7 +26,13 @@ SECRET_KEY = 'qsat@*z=txqa1!i2apvh5^0=s=g!=5%1o+f0!c-jgo^-(8+08o'
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://10.176.22.62:8080",  # 必须明确指定前端地址，不能用通配符 *
-    "http://172.29.192.1:8080"
+    "http://172.29.192.1:8080",
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://localhost:8082",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:8081",
+    "http://127.0.0.1:8082"
 ]
 
 CORS_ALLOW_METHODS = [
