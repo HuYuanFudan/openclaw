@@ -308,12 +308,20 @@
                         <div class="risk-detail-item">
                           <div class="rdi-title">对外担保风险</div>
                           <div class="rdi-text">对外担保形成或有负债，担保对象多为上市公司子公司，存在关联交易和隐性债务风险。</div>
+                          <div class="rdi-case" v-if="riskCases.guarantee">
+                            <div class="rdi-case-label">真实案例：</div>
+                            <div class="rdi-case-content">通富微电子股份有限公司为 TF AMD MICROELECTRONICS 提供对外担保，存在关联交易风险。</div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
                         <div class="risk-detail-item">
                           <div class="rdi-title">股权质押风险</div>
                           <div class="rdi-text">股东质押股权融资存在平仓、爆仓及控制权变更风险，用途多为融资担保与借款。</div>
+                          <div class="rdi-case" v-if="riskCases.pledge">
+                            <div class="rdi-case-label">真实案例：</div>
+                            <div class="rdi-case-content">广州市奕博投资有限公司向中信证券质押股权，涉及大额融资担保。</div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
@@ -335,6 +343,10 @@
                         <div class="risk-detail-item">
                           <div class="rdi-title">信息披露违规</div>
                           <div class="rdi-text">推迟披露、虚假记载、重大遗漏等违规类型频发，反映公司内部控制和合规管理缺陷。</div>
+                          <div class="rdi-case" v-if="riskCases.violation">
+                            <div class="rdi-case-label">真实案例：</div>
+                            <div class="rdi-case-content">深圳国华网安科技股份有限公司因虚假记载(误导性陈述)和推迟披露被深交所处罚。</div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
@@ -389,18 +401,30 @@
                         <div class="risk-detail-item">
                           <div class="rdi-title">监管处罚</div>
                           <div class="rdi-text">深交所、上交所、证监会及地方监管局处罚事件会损害公司声誉，影响投资者信心。</div>
+                          <div class="rdi-case" v-if="riskCases.penalty">
+                            <div class="rdi-case-label">真实案例：</div>
+                            <div class="rdi-case-content">万科企业股份有限公司因重大遗漏被深圳证券交易所处罚，影响市场声誉。</div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
                         <div class="risk-detail-item">
                           <div class="rdi-title">诉讼仲裁</div>
                           <div class="rdi-text">大额诉讼案件（超1亿元占比93%）及司法执行信息会显著影响公司市场声誉。</div>
+                          <div class="rdi-case" v-if="riskCases.litigation">
+                            <div class="rdi-case-label">真实案例：</div>
+                            <div class="rdi-case-content">深圳市东方财智资产管理有限公司起诉深圳市全新好股份有限公司，涉案金额巨大，属股东纠纷类诉讼。</div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
                         <div class="risk-detail-item">
                           <div class="rdi-title">风险警示</div>
                           <div class="rdi-text">ST / *ST 公司集中在批发、计算机通信、商务服务等行业，声誉受损影响融资和经营。</div>
+                          <div class="rdi-case" v-if="riskCases.st">
+                            <div class="rdi-case-label">统计数据：</div>
+                            <div class="rdi-case-content">全市场共176家ST/*ST公司，主要集中在批发、计算机通信、商务服务等高风险行业。</div>
+                          </div>
                         </div>
                       </el-col>
                     </el-row>
@@ -413,7 +437,7 @@
           <!-- 风险关联洞察 -->
           <el-row :gutter="16" style="margin-top: 16px">
             <el-col :span="24">
-              <el-card header="风险关联与传导机制" class="panel">
+              <el-card header="风险分析" class="panel">
                 <el-row :gutter="16">
                   <el-col :span="8" v-for="(k, i) in riskInsights" :key="i" style="margin-bottom: 12px">
                     <div class="risk-insight-card">
@@ -919,6 +943,14 @@ export default {
       activeTab: this.initialTab,
       // ====== 图谱金融风险知识（五大类风险：市场/信用/操作/流动性/声誉） ======
       activeRiskPanels: ['market', 'credit', 'operational', 'liquidity', 'reputation'],
+      riskCases: {
+        guarantee: true,  // 对外担保风险
+        pledge: true,     // 股权质押风险
+        violation: true,  // 信息披露违规
+        penalty: true,    // 监管处罚
+        litigation: true, // 诉讼仲裁
+        st: true          // 风险警示
+      },
       financialRiskCards: [
         { name: '市场风险', icon: 'DataAnalysis', color: '#409eff',
           count: 56,
@@ -2503,6 +2535,23 @@ export default {
   font-size: 12px;
   color: #606266;
   line-height: 1.6;
+}
+.rdi-case {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #f0f9ff;
+  border-left: 3px solid #409eff;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.rdi-case-label {
+  color: #409eff;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.rdi-case-content {
+  color: #606266;
+  line-height: 1.5;
 }
 
 .risk-insight-card {

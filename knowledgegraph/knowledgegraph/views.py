@@ -1034,3 +1034,275 @@ class GraphStatsView(APIView):
                 {'status': 'error', 'message': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# ==================== Cypher 高级查询功能 ====================
+
+class CypherSubgraphView(APIView):
+    """
+    N跳子图查询：从指定节点出发，查询n跳范围内的所有节点和关系
+    参数：credit_number（社会信用代码），hops（跳数1-5）
+    """
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            credit_number = data.get('credit_number', '').strip()
+            hops = int(data.get('hops', 2))
+            hops = max(1, min(5, hops))  # 限制1-5跳
+
+            if not credit_number:
+                return Response({'status': 'error', 'message': '请提供社会信用代码'}, status=400)
+
+            # 使用Cypher查询n跳子图
+            query = f"""
+            MATCH path = (start:Company {{`社会信用代码`: $credit_number}})-[*1..{hops}]-(end)
+            WHERE NOT end:MetaKnowledge
+            RETURN
+                start.`公司中文名称` as start_name,
+                end.`公司中文名称` as end_name,
+                [rel in relationships(path) | type(rel)] as rel_types,
+                length(path) as path_length,
+                labels(end) as end_labels
+            ORDER BY path_length
+            LIMIT 100
+            """
+
+            result = graph.run(query, credit_number=credit_number).data()
+
+            nodes = {}
+            edges = []
+
+            for row in result:
+                start_name = row.get('start_name') or 'Unknown'
+                end_name = row.get('end_name') or 'Unknown'
+                rel_types = row.get('rel_types', [])
+
+                nodes[start_name] = {'name': start_name, 'type': 'Company'}
+                nodes[end_name] = {'name': end_name, 'type': row.get('end_labels', ['Unknown'])[0]}
+
+                if rel_types:
+                    edges.append({
+                        'source': start_name,
+                        'target': end_name,
+                        'relation': rel_types[-1] if rel_types else 'RELATED'
+                    })
+
+            return Response({
+                'status': 'success',
+                'credit_number': credit_number,
+                'hops': hops,
+                'nodes': list(nodes.values()),
+                'edges': edges,
+                'node_count': len(nodes),
+                'edge_count': len(edges)
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+class RiskPathView(APIView):
+    """
+    风险路径追溯：查询某公司到违规/诉讼节点的最短路径
+    参数：credit_number（社会信用代码）
+    """
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            credit_number = data.get('credit_number', '').strip()
+
+            if not credit_number:
+                return Response({'status': 'error', 'message': '请提供社会信用代码'}, status=400)
+
+            # 查询到Violation和Litigation的最短路径
+            violation_query = """
+            MATCH (c:Company {`社会信用代码`: $credit_number})
+            MATCH (v:Violation)
+            MATCH path = shortestPath((c)-[*1..5]-(v))
+            RETURN
+                c.`公司中文名称` as company,
+                v.`违规类型` as violation_type,
+                v.`处理单位` as handler,
+                v.`处罚日期` as penalty_date,
+                [rel in relationships(path) | type(rel)] as path_rels,
+                length(path) as path_length
+            LIMIT 5
+            """
+
+            litigation_query = """
+            MATCH (c:Company {`社会信用代码`: $credit_number})
+            MATCH (l:Litigation)
+            MATCH path = shortestPath((c)-[*1..5]-(l))
+            RETURN
+                c.`公司中文名称` as company,
+                l.`涉案缘由` as case_reason,
+                l.`涉案金额` as amount,
+                l.`司法类型` as litigation_type,
+                [rel in relationships(path) | type(rel)] as path_rels,
+                length(path) as path_length
+            LIMIT 5
+            """
+
+            violation_paths = graph.run(violation_query, credit_number=credit_number).data()
+            litigation_paths = graph.run(litigation_query, credit_number=credit_number).data()
+
+            return Response({
+                'status': 'success',
+                'credit_number': credit_number,
+                'violation_paths': violation_paths[:3],
+                'litigation_paths': litigation_paths[:3]
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+class RelationDistributionView(APIView):
+    """
+    关系类型分布：统计某节点涉及的所有关系类型和数量
+    参数：credit_number（社会信用代码）
+    """
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            credit_number = data.get('credit_number', '').strip()
+
+            if not credit_number:
+                return Response({'status': 'error', 'message': '请提供社会信用代码'}, status=400)
+
+            query = """
+            MATCH (c:Company {`社会信用代码`: $credit_number})
+            OPTIONAL MATCH (c)-[r]->(out_node)
+            OPTIONAL MATCH (in_node)-[r2]->(c)
+            RETURN
+                c.`公司中文名称` as company_name,
+                type(r) as outgoing_type,
+                count(distinct r) as outgoing_count,
+                type(r2) as incoming_type,
+                count(distinct r2) as incoming_count,
+                labels(out_node) as out_labels,
+                labels(in_node) as in_labels
+            """
+
+            result = graph.run(query, credit_number=credit_number).data()
+
+            # 整理关系分布
+            outgoing_relations = {}
+            incoming_relations = {}
+            company_name = ''
+
+            for row in result:
+                if not company_name:
+                    company_name = row.get('company_name', 'Unknown')
+
+                out_type = row.get('outgoing_type')
+                out_count = row.get('outgoing_count') or 0
+                if out_type and out_count > 0:
+                    outgoing_relations[out_type] = {
+                        'type': out_type,
+                        'count': out_count,
+                        'target_labels': row.get('out_labels', [])
+                    }
+
+                in_type = row.get('incoming_type')
+                in_count = row.get('incoming_count') or 0
+                if in_type and in_count > 0:
+                    incoming_relations[in_type] = {
+                        'type': in_type,
+                        'count': in_count,
+                        'source_labels': row.get('in_labels', [])
+                    }
+
+            return Response({
+                'status': 'success',
+                'credit_number': credit_number,
+                'company_name': company_name,
+                'outgoing_relations': list(outgoing_relations.values()),
+                'incoming_relations': list(incoming_relations.values()),
+                'total_outgoing': sum(r['count'] for r in outgoing_relations.values()),
+                'total_incoming': sum(r['count'] for r in incoming_relations.values())
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+class RelatedCompanyNetworkView(APIView):
+    """
+    关联公司网络：查询通过子公司、客户、供应商关系关联的公司
+    参数：credit_number（社会信用代码）
+    """
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            credit_number = data.get('credit_number', '').strip()
+
+            if not credit_number:
+                return Response({'status': 'error', 'message': '请提供社会信用代码'}, status=400)
+
+            query = """
+            MATCH (c:Company {`社会信用代码`: $credit_number})
+            OPTIONAL MATCH (c)-[:`子公司`]->(sub:Company)
+            OPTIONAL MATCH (c)-[:`客户`]->(cust:Company)
+            OPTIONAL MATCH (c)-[:`供应商`]->(supplier:Company)
+            OPTIONAL MATCH (parent:Company)-[:`子公司`]->(c)
+            RETURN
+                c.`公司中文名称` as company_name,
+                collect(distinct sub.`公司中文名称`) as subsidiaries,
+                collect(distinct cust.`公司中文名称`) as customers,
+                collect(distinct supplier.`公司中文名称`) as suppliers,
+                collect(distinct parent.`公司中文名称`) as parents,
+                count(distinct sub) as sub_count,
+                count(distinct cust) as cust_count,
+                count(distinct supplier) as supplier_count
+            LIMIT 1
+            """
+
+            result = graph.run(query, credit_number=credit_number).data()
+
+            if result and len(result) > 0:
+                row = result[0]
+                return Response({
+                    'status': 'success',
+                    'credit_number': credit_number,
+                    'company_name': row.get('company_name', ''),
+                    'subsidiaries': [s for s in row.get('subsidiaries', []) if s][:10],
+                    'customers': [c for c in row.get('customers', []) if c][:10],
+                    'suppliers': [s for s in row.get('suppliers', []) if s][:10],
+                    'parents': [p for p in row.get('parents', []) if p][:5],
+                    'sub_count': row.get('sub_count', 0),
+                    'cust_count': row.get('cust_count', 0),
+                    'supplier_count': row.get('supplier_count', 0)
+                })
+            else:
+                return Response({
+                    'status': 'success',
+                    'credit_number': credit_number,
+                    'company_name': '',
+                    'subsidiaries': [],
+                    'customers': [],
+                    'suppliers': [],
+                    'parents': [],
+                    'sub_count': 0,
+                    'cust_count': 0,
+                    'supplier_count': 0
+                })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'status': 'error', 'message': str(e)}, status=500)
