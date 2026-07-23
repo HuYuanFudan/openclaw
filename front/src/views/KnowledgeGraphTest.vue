@@ -278,21 +278,84 @@
                     </template>
                     <el-row :gutter="16">
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">股债对冲效应</div>
-                          <div class="rdi-text">股票与国债现货存在显著互相对冲效应，可作为资产配置工具，但需关注极端尾部风险。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('market_0')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">股债对冲效应</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.market_risk?.sub_types?.[0]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.market_risk?.sub_types?.[0]?.description || '股票与国债现货存在显著互相对冲效应，可作为资产配置工具，但需关注极端尾部风险。' }}</div>
+                          <div v-if="expandedRiskCases['market_0'] && riskCaseData?.market_risk?.sub_types?.[0]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.market_risk.sub_types[0].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                              <div v-if="caseItem.related_event" class="rdi-case-detail">
+                                <span class="rdi-case-label">相关事件：</span>
+                                <span>{{ caseItem.related_event }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">灾难风险溢价</div>
-                          <div class="rdi-text">灾难风险可解释中国股市约 39.5% 的股权溢价，是驱动市场过度波动的核心风险源。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('market_1')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">灾难风险溢价</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.market_risk?.sub_types?.[1]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.market_risk?.sub_types?.[1]?.description || '灾难风险可解释中国股市约 39.5% 的股权溢价，是驱动市场过度波动的核心风险源。' }}</div>
+                          <div v-if="expandedRiskCases['market_1'] && riskCaseData?.market_risk?.sub_types?.[1]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.market_risk.sub_types[1].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                              <div v-if="caseItem.related_event" class="rdi-case-detail">
+                                <span class="rdi-case-label">相关事件：</span>
+                                <span>{{ caseItem.related_event }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">期货对冲局限</div>
-                          <div class="rdi-text">股指期货与国债期货之间不存在显著对冲效应，受制度限制和参与者缺位影响。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('market_2')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">期货对冲局限</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.market_risk?.sub_types?.[2]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.market_risk?.sub_types?.[2]?.description || '股指期货与国债期货之间不存在显著对冲效应，受制度限制和参与者缺位影响。' }}</div>
+                          <div v-if="expandedRiskCases['market_2'] && riskCaseData?.market_risk?.sub_types?.[2]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.market_risk.sub_types[2].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                              <div v-if="caseItem.related_event" class="rdi-case-detail">
+                                <span class="rdi-case-label">相关事件：</span>
+                                <span>{{ caseItem.related_event }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                     </el-row>
@@ -305,29 +368,104 @@
                     </template>
                     <el-row :gutter="16">
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">对外担保风险</div>
-                          <div class="rdi-text">对外担保形成或有负债，担保对象多为上市公司子公司，存在关联交易和隐性债务风险。</div>
-                          <div class="rdi-case" v-if="riskCases.guarantee">
-                            <div class="rdi-case-label">真实案例：</div>
-                            <div class="rdi-case-content">通富微电子股份有限公司为 TF AMD MICROELECTRONICS 提供对外担保，存在关联交易风险。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('credit_0')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">对外担保风险</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.credit_risk?.sub_types?.[0]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.credit_risk?.sub_types?.[0]?.description || '对外担保形成或有负债，担保对象多为上市公司子公司，存在关联交易和隐性债务风险。' }}</div>
+                          <div v-if="expandedRiskCases['credit_0'] && riskCaseData?.credit_risk?.sub_types?.[0]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.credit_risk.sub_types[0].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.guarantor" class="rdi-case-detail">
+                                <span class="rdi-case-label">担保方：</span>
+                                <span>{{ caseItem.guarantor }}</span>
+                              </div>
+                              <div v-if="caseItem.guaranteed" class="rdi-case-detail">
+                                <span class="rdi-case-label">被担保方：</span>
+                                <span>{{ caseItem.guaranteed }}</span>
+                              </div>
+                              <div v-if="caseItem.amount" class="rdi-case-detail">
+                                <span class="rdi-case-label">担保金额：</span>
+                                <span>{{ caseItem.amount }}</span>
+                              </div>
+                              <div v-if="caseItem.term" class="rdi-case-detail">
+                                <span class="rdi-case-label">担保期限：</span>
+                                <span>{{ caseItem.term }}</span>
+                              </div>
+                              <div v-if="caseItem.debt_type" class="rdi-case-detail">
+                                <span class="rdi-case-label">债务类型：</span>
+                                <span>{{ caseItem.debt_type }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">股权质押风险</div>
-                          <div class="rdi-text">股东质押股权融资存在平仓、爆仓及控制权变更风险，用途多为融资担保与借款。</div>
-                          <div class="rdi-case" v-if="riskCases.pledge">
-                            <div class="rdi-case-label">真实案例：</div>
-                            <div class="rdi-case-content">广州市奕博投资有限公司向中信证券质押股权，涉及大额融资担保。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('credit_1')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">股权质押风险</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.credit_risk?.sub_types?.[1]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.credit_risk?.sub_types?.[1]?.description || '股东质押股权融资存在平仓、爆仓及控制权变更风险，用途多为融资担保与借款。' }}</div>
+                          <div v-if="expandedRiskCases['credit_1'] && riskCaseData?.credit_risk?.sub_types?.[1]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.credit_risk.sub_types[1].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.pledgor" class="rdi-case-detail">
+                                <span class="rdi-case-label">质押方：</span>
+                                <span>{{ caseItem.pledgor }}</span>
+                              </div>
+                              <div v-if="caseItem.pledgee" class="rdi-case-detail">
+                                <span class="rdi-case-label">质权方：</span>
+                                <span>{{ caseItem.pledgee }}</span>
+                              </div>
+                              <div v-if="caseItem.shares" class="rdi-case-detail">
+                                <span class="rdi-case-label">质押股数：</span>
+                                <span>{{ caseItem.shares }}</span>
+                              </div>
+                              <div v-if="caseItem.ratio" class="rdi-case-detail">
+                                <span class="rdi-case-label">质押比例：</span>
+                                <span>{{ caseItem.ratio }}</span>
+                              </div>
+                              <div v-if="caseItem.purpose" class="rdi-case-detail">
+                                <span class="rdi-case-label">质押用途：</span>
+                                <span>{{ caseItem.purpose }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">影子银行信用</div>
-                          <div class="rdi-text">抵押率是影响高风险企业融资成本和信贷规模的关键变量，仅关注利率可能误判风险。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('credit_2')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">影子银行信用</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.credit_risk?.sub_types?.[2]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.credit_risk?.sub_types?.[2]?.description || '抵押率是影响高风险企业融资成本和信贷规模的关键变量，仅关注利率可能误判风险。' }}</div>
+                          <div v-if="expandedRiskCases['credit_2'] && riskCaseData?.credit_risk?.sub_types?.[2]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.credit_risk.sub_types[2].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.company" class="rdi-case-detail">
+                                <span class="rdi-case-label">公司：</span>
+                                <span>{{ caseItem.company }}</span>
+                              </div>
+                              <div v-if="caseItem.target" class="rdi-case-detail">
+                                <span class="rdi-case-label">目标公司：</span>
+                                <span>{{ caseItem.target }}</span>
+                              </div>
+                              <div v-if="caseItem.amount" class="rdi-case-detail">
+                                <span class="rdi-case-label">金额：</span>
+                                <span>{{ caseItem.amount }}</span>
+                              </div>
+                              <div v-if="caseItem.creditor_type" class="rdi-case-detail">
+                                <span class="rdi-case-label">债权人类型：</span>
+                                <span>{{ caseItem.creditor_type }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                     </el-row>
@@ -340,25 +478,88 @@
                     </template>
                     <el-row :gutter="16">
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">信息披露违规</div>
-                          <div class="rdi-text">推迟披露、虚假记载、重大遗漏等违规类型频发，反映公司内部控制和合规管理缺陷。</div>
-                          <div class="rdi-case" v-if="riskCases.violation">
-                            <div class="rdi-case-label">真实案例：</div>
-                            <div class="rdi-case-content">深圳国华网安科技股份有限公司因虚假记载(误导性陈述)和推迟披露被深交所处罚。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('operational_0')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">信息披露违规</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.operational_risk?.sub_types?.[0]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.operational_risk?.sub_types?.[0]?.description || '推迟披露、虚假记载、重大遗漏等违规类型频发，反映公司内部控制和合规管理缺陷。' }}</div>
+                          <div v-if="expandedRiskCases['operational_0'] && riskCaseData?.operational_risk?.sub_types?.[0]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.operational_risk.sub_types[0].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.company" class="rdi-case-detail">
+                                <span class="rdi-case-label">公司：</span>
+                                <span>{{ caseItem.company }}</span>
+                              </div>
+                              <div v-if="caseItem.violation_type" class="rdi-case-detail">
+                                <span class="rdi-case-label">违规类型：</span>
+                                <span>{{ caseItem.violation_type }}</span>
+                              </div>
+                              <div v-if="caseItem.penalty_date" class="rdi-case-detail">
+                                <span class="rdi-case-label">处罚日期：</span>
+                                <span>{{ caseItem.penalty_date }}</span>
+                              </div>
+                              <div v-if="caseItem.penalty_amount" class="rdi-case-detail">
+                                <span class="rdi-case-label">处罚金额：</span>
+                                <span>{{ caseItem.penalty_amount }}</span>
+                              </div>
+                              <div v-if="caseItem.authority" class="rdi-case-detail">
+                                <span class="rdi-case-label">处理单位：</span>
+                                <span>{{ caseItem.authority }}</span>
+                              </div>
+                              <div v-if="caseItem.summary" class="rdi-case-detail">
+                                <span class="rdi-case-label">违规摘要：</span>
+                                <span>{{ caseItem.summary }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">管理层策略性行为</div>
-                          <div class="rdi-text">管理层可能策略性增加创新投入以吸引投资者关注并借机减持套现，存在道德风险。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('operational_1')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">管理层策略性行为</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.operational_risk?.sub_types?.[1]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.operational_risk?.sub_types?.[1]?.description || '管理层可能策略性增加创新投入以吸引投资者关注并借机减持套现，存在道德风险。' }}</div>
+                          <div v-if="expandedRiskCases['operational_1'] && riskCaseData?.operational_risk?.sub_types?.[1]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.operational_risk.sub_types[1].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">网络安全感知</div>
-                          <div class="rdi-text">移动端投资者网络安全风险感知要求更高的风险补偿，安全事件可能引发非理性赎回。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('operational_2')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">网络安全感知</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.operational_risk?.sub_types?.[2]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.operational_risk?.sub_types?.[2]?.description || '移动端投资者网络安全风险感知要求更高的风险补偿，安全事件可能引发非理性赎回。' }}</div>
+                          <div v-if="expandedRiskCases['operational_2'] && riskCaseData?.operational_risk?.sub_types?.[2]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.operational_risk.sub_types[2].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                     </el-row>
@@ -371,21 +572,72 @@
                     </template>
                     <el-row :gutter="16">
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">政策不确定性与现金持有</div>
-                          <div class="rdi-text">经济政策不确定性上升会显著抑制企业投资并提高现金持有，反映预防性流动性需求。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('liquidity_0')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">政策不确定性与现金持有</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.liquidity_risk?.sub_types?.[0]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.liquidity_risk?.sub_types?.[0]?.description || '经济政策不确定性上升会显著抑制企业投资并提高现金持有，反映预防性流动性需求。' }}</div>
+                          <div v-if="expandedRiskCases['liquidity_0'] && riskCaseData?.liquidity_risk?.sub_types?.[0]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.liquidity_risk.sub_types[0].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">跨境资本流动</div>
-                          <div class="rdi-text">区域危机期间中国证券市场与发达市场一体化水平反而增强，外资流动加剧流动性波动。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('liquidity_1')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">跨境资本流动</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.liquidity_risk?.sub_types?.[1]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.liquidity_risk?.sub_types?.[1]?.description || '区域危机期间中国证券市场与发达市场一体化水平反而增强，外资流动加剧流动性波动。' }}</div>
+                          <div v-if="expandedRiskCases['liquidity_1'] && riskCaseData?.liquidity_risk?.sub_types?.[1]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.liquidity_risk.sub_types[1].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">投资者行为</div>
-                          <div class="rdi-text">移动端投资者网络安全风险感知越高，要求的风险补偿越高，安全事件可能诱发赎回潮。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('liquidity_2')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">投资者行为</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.liquidity_risk?.sub_types?.[2]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.liquidity_risk?.sub_types?.[2]?.description || '移动端投资者网络安全风险感知越高，要求的风险补偿越高，安全事件可能诱发赎回潮。' }}</div>
+                          <div v-if="expandedRiskCases['liquidity_2'] && riskCaseData?.liquidity_risk?.sub_types?.[2]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.liquidity_risk.sub_types[2].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.conclusion" class="rdi-case-detail">
+                                <span class="rdi-case-label">核心结论：</span>
+                                <span>{{ caseItem.conclusion }}</span>
+                              </div>
+                              <div v-if="caseItem.risk_guidance" class="rdi-case-detail">
+                                <span class="rdi-case-label">风险指导：</span>
+                                <span>{{ caseItem.risk_guidance }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </el-col>
                     </el-row>
@@ -398,32 +650,115 @@
                     </template>
                     <el-row :gutter="16">
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">监管处罚</div>
-                          <div class="rdi-text">深交所、上交所、证监会及地方监管局处罚事件会损害公司声誉，影响投资者信心。</div>
-                          <div class="rdi-case" v-if="riskCases.penalty">
-                            <div class="rdi-case-label">真实案例：</div>
-                            <div class="rdi-case-content">万科企业股份有限公司因重大遗漏被深圳证券交易所处罚，影响市场声誉。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('reputation_0')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">监管处罚</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.reputation_risk?.sub_types?.[0]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.reputation_risk?.sub_types?.[0]?.description || '深交所、上交所、证监会及地方监管局处罚事件会损害公司声誉，影响投资者信心。' }}</div>
+                          <div v-if="expandedRiskCases['reputation_0'] && riskCaseData?.reputation_risk?.sub_types?.[0]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.reputation_risk.sub_types[0].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.company" class="rdi-case-detail">
+                                <span class="rdi-case-label">公司：</span>
+                                <span>{{ caseItem.company }}</span>
+                              </div>
+                              <div v-if="caseItem.authority" class="rdi-case-detail">
+                                <span class="rdi-case-label">处理单位：</span>
+                                <span>{{ caseItem.authority }}</span>
+                              </div>
+                              <div v-if="caseItem.violation_type" class="rdi-case-detail">
+                                <span class="rdi-case-label">违规类型：</span>
+                                <span>{{ caseItem.violation_type }}</span>
+                              </div>
+                              <div v-if="caseItem.penalty_date" class="rdi-case-detail">
+                                <span class="rdi-case-label">处罚日期：</span>
+                                <span>{{ caseItem.penalty_date }}</span>
+                              </div>
+                              <div v-if="caseItem.penalty_amount" class="rdi-case-detail">
+                                <span class="rdi-case-label">处罚金额：</span>
+                                <span>{{ caseItem.penalty_amount }}</span>
+                              </div>
+                              <div v-if="caseItem.penalty_result" class="rdi-case-detail">
+                                <span class="rdi-case-label">处罚结果：</span>
+                                <span>{{ caseItem.penalty_result }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">诉讼仲裁</div>
-                          <div class="rdi-text">大额诉讼案件（超1亿元占比93%）及司法执行信息会显著影响公司市场声誉。</div>
-                          <div class="rdi-case" v-if="riskCases.litigation">
-                            <div class="rdi-case-label">真实案例：</div>
-                            <div class="rdi-case-content">深圳市东方财智资产管理有限公司起诉深圳市全新好股份有限公司，涉案金额巨大，属股东纠纷类诉讼。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('reputation_1')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">诉讼仲裁</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.reputation_risk?.sub_types?.[1]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.reputation_risk?.sub_types?.[1]?.description || '大额诉讼案件（超1亿元占比93%）及司法执行信息会显著影响公司市场声誉。' }}</div>
+                          <div v-if="expandedRiskCases['reputation_1'] && riskCaseData?.reputation_risk?.sub_types?.[1]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.reputation_risk.sub_types[1].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.plaintiff" class="rdi-case-detail">
+                                <span class="rdi-case-label">起诉方：</span>
+                                <span>{{ caseItem.plaintiff }}</span>
+                              </div>
+                              <div v-if="caseItem.defendant" class="rdi-case-detail">
+                                <span class="rdi-case-label">应诉方：</span>
+                                <span>{{ caseItem.defendant }}</span>
+                              </div>
+                              <div v-if="caseItem.amount" class="rdi-case-detail">
+                                <span class="rdi-case-label">涉案金额：</span>
+                                <span>{{ caseItem.amount }}</span>
+                              </div>
+                              <div v-if="caseItem.reason" class="rdi-case-detail">
+                                <span class="rdi-case-label">涉案缘由：</span>
+                                <span>{{ caseItem.reason }}</span>
+                              </div>
+                              <div v-if="caseItem.judicial_type" class="rdi-case-detail">
+                                <span class="rdi-case-label">司法类型：</span>
+                                <span>{{ caseItem.judicial_type }}</span>
+                              </div>
+                              <div v-if="caseItem.progress" class="rdi-case-detail">
+                                <span class="rdi-case-label">司法进程：</span>
+                                <span>{{ caseItem.progress }}</span>
+                              </div>
+                              <div v-if="caseItem.announce_date" class="rdi-case-detail">
+                                <span class="rdi-case-label">公告日期：</span>
+                                <span>{{ caseItem.announce_date }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </el-col>
                       <el-col :span="8">
-                        <div class="risk-detail-item">
-                          <div class="rdi-title">风险警示</div>
-                          <div class="rdi-text">ST / *ST 公司集中在批发、计算机通信、商务服务等行业，声誉受损影响融资和经营。</div>
-                          <div class="rdi-case" v-if="riskCases.st">
-                            <div class="rdi-case-label">统计数据：</div>
-                            <div class="rdi-case-content">全市场共176家ST/*ST公司，主要集中在批发、计算机通信、商务服务等高风险行业。</div>
+                        <div class="risk-detail-item" @click="toggleRiskCase('reputation_2')">
+                          <div class="rdi-header">
+                            <div class="rdi-title">风险警示</div>
+                            <el-tag size="small" type="info">{{ riskCaseData?.reputation_risk?.sub_types?.[2]?.count || 0 }} 条</el-tag>
+                          </div>
+                          <div class="rdi-text">{{ riskCaseData?.reputation_risk?.sub_types?.[2]?.description || 'ST / *ST 公司集中在批发、计算机通信、商务服务等行业，声誉受损影响融资和经营。' }}</div>
+                          <div v-if="expandedRiskCases['reputation_2'] && riskCaseData?.reputation_risk?.sub_types?.[2]?.cases?.length" class="rdi-cases">
+                            <div class="rdi-case-title">案例详情</div>
+                            <div v-for="(caseItem, idx) in riskCaseData.reputation_risk.sub_types[2].cases" :key="idx" class="rdi-case-item">
+                              <div class="rdi-case-header">案例 {{ idx + 1 }}</div>
+                              <div v-if="caseItem.company" class="rdi-case-detail">
+                                <span class="rdi-case-label">公司名称：</span>
+                                <span>{{ caseItem.company }}</span>
+                              </div>
+                              <div v-if="caseItem.stock_abbreviation" class="rdi-case-detail">
+                                <span class="rdi-case-label">股票简称：</span>
+                                <span>{{ caseItem.stock_abbreviation }}</span>
+                              </div>
+                              <div v-if="caseItem.stock_code" class="rdi-case-detail">
+                                <span class="rdi-case-label">股票代码：</span>
+                                <span>{{ caseItem.stock_code }}</span>
+                              </div>
+                              <div v-if="caseItem.industry" class="rdi-case-detail">
+                                <span class="rdi-case-label">所属行业：</span>
+                                <span>{{ caseItem.industry }}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </el-col>
@@ -434,16 +769,26 @@
             </el-col>
           </el-row>
 
-          <!-- 风险关联洞察 -->
+          <!-- 风险总结 -->
           <el-row :gutter="16" style="margin-top: 16px">
             <el-col :span="24">
-              <el-card header="风险分析" class="panel">
+              <el-card header="风险总结" class="panel">
                 <el-row :gutter="16">
                   <el-col :span="8" v-for="(k, i) in riskInsights" :key="i" style="margin-bottom: 12px">
                     <div class="risk-insight-card">
                       <div class="ri-tag">{{ k.tag }}</div>
                       <div class="ri-conclusion">{{ k.conclusion }}</div>
                       <div class="ri-implication">{{ k.implication }}</div>
+                      <div class="ri-source">
+                        <span class="ri-source-label">数据来源：</span>
+                        <span>{{ k.source }}</span>
+                      </div>
+                      <div v-if="k.cases && k.cases.length" class="ri-cases">
+                        <div class="ri-cases-title">典型案例</div>
+                        <ul class="ri-cases-list">
+                          <li v-for="(caseItem, idx) in k.cases" :key="idx">{{ caseItem }}</li>
+                        </ul>
+                      </div>
                     </div>
                   </el-col>
                 </el-row>
@@ -951,6 +1296,9 @@ export default {
         litigation: true, // 诉讼仲裁
         st: true          // 风险警示
       },
+      riskCaseData: null,  // 从后端获取的风险案例数据
+      expandedRiskCases: {},  // 记录哪些案例卡片被展开
+      riskCaseLoading: false,  // 加载状态
       financialRiskCards: [
         { name: '市场风险', icon: 'DataAnalysis', color: '#409eff',
           count: 56,
@@ -989,17 +1337,29 @@ export default {
       ],
       riskInsights: [
         { tag: '股债跷跷板', conclusion: '股票与国债现货存在显著互相对冲效应',
-          implication: '市场风险管理中可跨资产配置，但需警惕极端尾部事件' },
+          implication: '市场风险管理中可跨资产配置，但需警惕极端尾部事件',
+          source: 'MetaKnowledge / 证券市场数据',
+          cases: ['2015年股灾发生后大量资金流入债市，开启一年"配置牛"行情', '2018年10月全球股市重挫，A股连续下跌，资金流入债市避险'] },
         { tag: '担保质押联动', conclusion: '对外担保与股权质押常相伴出现',
-          implication: '信用风险与流动性风险相互传导，需综合评估' },
+          implication: '信用风险与流动性风险相互传导，需综合评估',
+          source: 'GUARANTEES / PLEDGE / 担保质押关系',
+          cases: ['通富微电为子公司TF AMD MICROELECTRONICS提供担保', '正邦科技为江西正邦养殖有限公司提供担保'] },
         { tag: '处罚诉讼共振', conclusion: '监管处罚与诉讼仲裁高度相关',
-          implication: '操作风险事件易演变为声誉风险，影响融资成本' },
+          implication: '操作风险事件易演变为声誉风险，影响融资成本',
+          source: 'Violation / Litigation / 处罚诉讼记录',
+          cases: ['万科因信息披露违规被深交所处罚', '多家上市公司因虚假记载被证监会立案调查'] },
         { tag: '投资者行为放大', conclusion: '移动端投资者风险感知显著高于PC端',
-          implication: '网络安全等操作风险事件可能诱发流动性风险' },
+          implication: '网络安全等操作风险事件可能诱发流动性风险',
+          source: 'MetaKnowledge / 投资者行为研究',
+          cases: ['2014年我国46.3%网民遭遇网络安全问题，账号被盗比例达25.9%', '余额宝用户因担心资金被盗而可能赎回'] },
         { tag: '地方债传染', conclusion: '地方公共债务扩张降低企业资源配置效率',
-          implication: '信用风险通过宏观经济渠道传导为系统性市场风险' },
+          implication: '信用风险通过宏观经济渠道传导为系统性市场风险',
+          source: 'MetaKnowledge / 宏观经济研究',
+          cases: ['地方政府隐性债务规模持续扩大，挤占企业信贷资源', '城投平台融资成本上升，影响区域经济发展'] },
         { tag: '子公司管控', conclusion: '投资设立是集团扩张主要方式',
-          implication: '子公司失控将引发信用风险与声誉风险连锁反应' }
+          implication: '子公司失控将引发信用风险与声誉风险连锁反应',
+          source: 'Company / INVESTS_IN / 投资关系',
+          cases: ['上市公司子公司退出数量达227459起，集团管控面临挑战', '子公司违规担保导致母公司承担连带责任'] }
       ],
       // ⑬ P25xx 编码 - 违规类型精确分类
       p25CodeRows: [
@@ -1556,6 +1916,8 @@ export default {
     this.$nextTick(() => {
       // 异步获取真实统计数据
       this.fetchStats();
+      // 获取风险案例数据
+      this.fetchRiskCaseData();
       // 若默认进入 stats tab，直接绘制图表
       if (this.activeTab === 'stats') {
         requestAnimationFrame(() => {
@@ -1598,12 +1960,41 @@ export default {
     addLog(type, text) {
       this.editLogs.unshift({ time: new Date().toLocaleTimeString('zh-CN'), type, text });
     },
+    // 切换风险案例卡片的展开/收起状态
+    toggleRiskCase(key) {
+      console.log('toggleRiskCase called with key:', key);
+      if (this.expandedRiskCases[key]) {
+        delete this.expandedRiskCases[key];
+      } else {
+        this.expandedRiskCases[key] = true;
+      }
+      // 触发Vue响应式更新
+      this.expandedRiskCases = { ...this.expandedRiskCases };
+    },
+    // 从后端获取风险案例数据
+    async fetchRiskCaseData() {
+      this.riskCaseLoading = true;
+      try {
+        const response = await axios.get('/api/risk_case_data/', {
+          timeout: 30000
+        });
+        const d = response.data;
+        if (d && d.status === 'success') {
+          this.riskCaseData = d.data;
+        }
+      } catch (err) {
+        console.error('获取风险案例数据失败:', err);
+        ElMessage.warning('未能从后端获取风险案例数据');
+      } finally {
+        this.riskCaseLoading = false;
+      }
+    },
     // 从后端获取真实图谱统计数据
     async fetchStats() {
       this.statsLoading = true;
       this.statsError = null;
       try {
-        const response = await axios.get('http://10.176.22.62:8001/graph_stats/', {
+        const response = await axios.get('/api/graph_stats/', {
           timeout: 30000
         });
         const d = response.data;
@@ -2524,6 +2915,12 @@ export default {
   padding: 12px;
   height: 100%;
   border-left: 3px solid #409eff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.risk-detail-item:hover {
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 .rdi-title {
   font-size: 13px;
@@ -2587,6 +2984,35 @@ export default {
   font-size: 12px;
   color: #606266;
   line-height: 1.5;
+}
+.ri-source {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e4e7ed;
+}
+.ri-source-label {
+  font-weight: 500;
+}
+.ri-cases {
+  margin-top: 8px;
+}
+.ri-cases-title {
+  font-size: 11px;
+  color: #409eff;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.ri-cases-list {
+  margin: 0;
+  padding-left: 16px;
+}
+.ri-cases-list li {
+  font-size: 11px;
+  color: #606266;
+  line-height: 1.5;
+  margin-bottom: 2px;
 }
 
 .attr-row {

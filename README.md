@@ -162,6 +162,12 @@ URL 路由定义见 [knowledgegraph/knowledgegraph/urls.py](knowledgegraph/knowl
 | `/query_relations/` | POST | `QueryRelationsView` | 按公司名查询抽取到的关系 |
 | `/get_companies/` | GET | `GetAllCompaniesView` | 获取所有已收录公司列表 |
 | `/add_company/` | POST | `AddCompanyView` | 新增公司到抽取数据集 |
+| `/risk_case_data/` | GET | `RiskCaseDataView` | 获取五大风险类型（市场/信用/操作/流动性/声誉）的子类案例数据 |
+| `/cypher_subgraph/` | POST | - | N跳子图查询 |
+| `/risk_path/` | POST | - | 风险路径追溯（违规/诉讼） |
+| `/relation_distribution/` | POST | - | 关系类型分布统计 |
+| `/related_company_network/` | POST | - | 关联公司网络（子公司/客户/供应商/母公司） |
+| `/graph_stats/` | GET | `GraphStatsView` | 图谱全局统计 |
 
 新闻关系抽取依赖 [knowledgegraph/knowledgegraph/relation_extractor.py](knowledgegraph/knowledgegraph/relation_extractor.py)，默认使用 Ollama（`http://localhost:11434/api/generate`，模型 `qwen3.6:27b`），并将结果写入 `front/public/cross_doc_dataset_updated.json`。
 
@@ -189,13 +195,36 @@ URL 路由定义见 [knowledgegraph/knowledgegraph/urls.py](knowledgegraph/knowl
 
 注意：这些脚本里 Neo4j 连接地址同样硬编码为 `neo4j://10.176.22.62:7687`，迁移环境时需要手动修改。
 
+## 风险案例数据功能
+
+基于巴塞尔协议框架，将知识图谱中的风险数据重新分类为五大核心风险类型，每种类型下设三个子类：
+
+| 风险类型 | 子类 |
+|---------|------|
+| 市场风险 | 股债对冲效应、灾难风险溢价、期货对冲局限 |
+| 信用风险 | 对外担保风险、股权质押风险、影子银行信用 |
+| 操作风险 | 信息披露违规、管理层策略性行为、网络安全感知 |
+| 流动性风险 | 政策不确定性与现金持有、跨境资本流动、投资者行为 |
+| 声誉风险 | 监管处罚、诉讼仲裁、风险警示 |
+
+相关文件：
+
+- [scan_risk_cases_for_ui.py](scan_risk_cases_for_ui.py)：扫描知识图谱，生成 `risk_case_data.json`
+- [check_st_companies.py](check_st_companies.py)：检查ST公司数据
+- 后端接口 `/risk_case_data/`（[views.py](knowledgegraph/knowledgegraph/views.py) `RiskCaseDataView`）
+- 前端展示在 `KnowledgeGraphTest.vue` 的"风险总结"面板中，点击子类卡片可展开查看详细案例
+
+### 查询节点模糊匹配
+
+`/querynode/` 接口支持所有查询字段的模糊匹配（`CONTAINS`），包括：公司名称、社会信用代码、法定代表人、证券代码、股票简称。匹配方式与 `/fuzzymatch/` 一致，使用 `coalesce` 处理空值。
+
 ## 推荐的本地联调方式
 
 当前仓库最接近"可直接体验"的方式是：
 
 1. 先启动 Django，并监听 `8001`
-2. 再启动 Vue 开发服务器（默认 `8080`）
-3. 把前端开发地址加入后端 CORS 白名单（见下文）
+2. 再启动 Vue 开发服务器（默认 `8080`，已配置 `/api` 代理到 `http://10.176.22.62:8001`，见 [vue.config.js](front/vue.config.js)）
+3. `KnowledgeGraphTest.vue` 中的 API 调用已统一使用 `/api/` 前缀通过代理转发
 4. 打开前端登录页，先验证登录、查节点、查关系、元知识列表、跨文档抽取这几条主链路
 
 ## 使用时必须注意的几个问题
