@@ -22,6 +22,7 @@
               <el-menu-item index="3-1" @click="showComponent('AddRelationship_excel')">添加关系</el-menu-item>
               <el-menu-item index="3-2" @click="showComponent('QueryRelationship')">查询关系</el-menu-item>
           </el-sub-menu>
+          <!-- 元知识功能已隐藏
           <el-sub-menu index="3">
             <template #title>
               <el-icon><setting /></el-icon>元知识操作
@@ -29,6 +30,7 @@
               <el-menu-item index="3-1" @click="showComponent('Allmetaknowledge')">查看元知识库</el-menu-item>
               <el-menu-item index="3-2" @click="showComponent('AddMetaKnowledge')">添加元知识</el-menu-item>
           </el-sub-menu>
+          -->
           <el-sub-menu index="4">
             <template #title>
               <el-icon><document /></el-icon>跨文档抽取
@@ -96,8 +98,8 @@ import QueryNode_excel from './QueryNode_excel.vue';
 import CompareName from './CompareName.vue';
 import fuzzymatch from './Fuzzy_match.vue';
 import subgraph from './SubGraph.vue';
-import Allmetaknowledge from './AllMetaknowledge.vue';
-import AddMetaKnowledge from './AddMetaKnowledge.vue';
+// import Allmetaknowledge from './AllMetaknowledge.vue';
+// import AddMetaKnowledge from './AddMetaKnowledge.vue';
 import Formula from './formula.vue'
 import CrossDocEntityExtract from './CrossDocEntityExtract.vue'
 import KnowledgeGraphTest from './KnowledgeGraphTest.vue'
@@ -147,8 +149,8 @@ export default {
     CompareName,
     fuzzymatch,
     subgraph,
-    Allmetaknowledge,
-    AddMetaKnowledge,
+    // Allmetaknowledge,
+    // AddMetaKnowledge,
     Formula,
     CrossDocEntityExtract,
     KnowledgeGraphTest,

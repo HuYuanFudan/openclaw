@@ -170,15 +170,175 @@ def Querynodes(data):
         return company_results
     else:
         return {"message": "未找到符合条件的公司"}
-def QueryRelationship(node1, node2, relationship):
-    query = ''
-    if relationship:
-        query = f"MATCH (c1:Company)-[r:{relationship}]->(c2:Company) WHERE c1.`社会信用代码` = '{node1}' AND c2.`社会信用代码` = '{node2}' RETURN type(r) as relationship_type, r"
+# 关系类型中文到英文的映射（数据库中存在的关系类型：所属城市, 拥有公司, A股证券_公司资料, 违规事件, 子公司, B股证券_公司资料, GUARANTEES, PLEDGE, 港股证券_公司资料, 客户, 供应商, 诉讼仲裁, 起诉）
+relation_cn_to_en = {
+    '质押': 'PLEDGE',
+    '担保': 'GUARANTEES',
+    '诉讼仲裁': '诉讼仲裁',
+    '客户': '客户',
+    '供应商': '供应商',
+    '子公司': '子公司',
+    '起诉': '起诉',
+    '违规事件': '违规事件',
+    '拥有公司': '拥有公司',
+    '所属城市': '所属城市',
+}
+
+def normalize_company_name(name):
+    """
+    规范化公司名称：统一公司名称格式，去除冗余后缀
+    """
+    if not name:
+        return name
+    
+    # 处理重复的"有限公司"，如"有限公司公司" -> "有限公司"
+    name = name.replace('有限公司公司', '有限公司')
+    # 处理"股份有限公司公司" -> "股份有限公司"
+    name = name.replace('股份有限公司公司', '股份有限公司')
+    
+    # 统一公司类型后缀
+    name = name.replace('有限责任公司', '有限公司')
+    name = name.replace('股份公司', '股份有限公司')
+    name = name.replace('责任公司', '有限公司')
+    
+    # 去除多余的空格和标点
+    name = name.strip()
+    name = name.replace('　', '')  # 去除全角空格
+    
+    return name
+
+def find_company_nodes(keyword):
+    """
+    根据关键词查找公司节点（支持模糊匹配）
+    返回匹配的公司节点列表
+    """
+    # 规范化关键词，处理重复后缀
+    keyword = normalize_company_name(keyword)
+    
+    # 判断是社会信用代码还是公司名称
+    is_credit = len(keyword) == 18 and keyword.isdigit()
+    
+    if is_credit:
+        query = f"MATCH (n:Company) WHERE n.`社会信用代码` = '{keyword}' RETURN n LIMIT 10"
     else:
-        query = f"MATCH (c1:Company)-[r]->(c2:Company) WHERE c1.`社会信用代码` = '{node1}' AND c2.`社会信用代码` = '{node2}' RETURN type(r) as relationship_type, r"
+        # 优先精确匹配，再模糊匹配
+        query = f"""
+            MATCH (n:Company) 
+            WHERE n.`公司中文名称` = '{keyword}' 
+               OR n.`公司中文名称` CONTAINS '{keyword}'
+               OR n.`公司曾用名` CONTAINS '{keyword}'
+               OR '{keyword}' CONTAINS n.`公司中文名称`
+            RETURN n 
+            ORDER BY CASE WHEN n.`公司中文名称` = '{keyword}' THEN 0 ELSE 1 END
+            LIMIT 10
+        """
+    
     result = graph.run(query).data()
-    relationship = str(result[0]['r'])
-    return relationship.__str__().encode("utf-8").decode("unicode_escape")
+    return [record['n'] for record in result]
+
+def QueryRelationship(node1, node2, relationship=None):
+    """
+    查询两个公司之间的关系（支持模糊匹配和无关系类型查询）
+    node1, node2: 公司中文名称或社会信用代码
+    relationship: 关系类型（可选，为空时查询所有关系）
+    """
+    print(f"[QueryRelationship] 开始查询 - 公司1: '{node1}', 公司2: '{node2}', 关系类型: '{relationship}'")
+    
+    # 关系类型中文转英文
+    if relationship and relationship in relation_cn_to_en:
+        print(f"[QueryRelationship] 关系类型映射: {relationship} -> {relation_cn_to_en[relationship]}")
+        relationship = relation_cn_to_en[relationship]
+    
+    # 判断是否为社会信用代码
+    is_credit1 = len(node1) == 18 and node1.isdigit()
+    is_credit2 = len(node2) == 18 and node2.isdigit()
+    
+    relationships = []
+    seen = set()  # 去重
+    
+    # 构建查询条件
+    if is_credit1 and is_credit2:
+        # 两个都是信用代码
+        query = f"""
+            MATCH (c1:Company)-[r]-(c2:Company) 
+            WHERE (c1.`社会信用代码` = '{node1}' AND c2.`社会信用代码` = '{node2}')
+               OR (c1.`社会信用代码` = '{node2}' AND c2.`社会信用代码` = '{node1}')
+            RETURN type(r) as relationship_type, c1, c2, r
+        """
+    elif is_credit1:
+        # 公司1是信用代码，公司2是名称
+        query = f"""
+            MATCH (c1:Company)-[r]-(c2:Company) 
+            WHERE c1.`社会信用代码` = '{node1}' 
+              AND (c2.`公司中文名称` CONTAINS '{node2}' OR '{node2}' CONTAINS c2.`公司中文名称`)
+            RETURN type(r) as relationship_type, c1, c2, r
+            UNION ALL
+            MATCH (c1:Company)-[r]-(c2:Company) 
+            WHERE c2.`社会信用代码` = '{node1}' 
+              AND (c1.`公司中文名称` CONTAINS '{node2}' OR '{node2}' CONTAINS c1.`公司中文名称`)
+            RETURN type(r) as relationship_type, c1, c2, r
+        """
+    elif is_credit2:
+        # 公司2是信用代码，公司1是名称
+        query = f"""
+            MATCH (c1:Company)-[r]-(c2:Company) 
+            WHERE c2.`社会信用代码` = '{node2}' 
+              AND (c1.`公司中文名称` CONTAINS '{node1}' OR '{node1}' CONTAINS c1.`公司中文名称`)
+            RETURN type(r) as relationship_type, c1, c2, r
+            UNION ALL
+            MATCH (c1:Company)-[r]-(c2:Company) 
+            WHERE c1.`社会信用代码` = '{node2}' 
+              AND (c2.`公司中文名称` CONTAINS '{node1}' OR '{node1}' CONTAINS c2.`公司中文名称`)
+            RETURN type(r) as relationship_type, c1, c2, r
+        """
+    else:
+        # 两个都是公司名称，使用模糊匹配
+        query = f"""
+            MATCH (c1:Company)-[r]-(c2:Company) 
+            WHERE (c1.`公司中文名称` CONTAINS '{node1}' OR '{node1}' CONTAINS c1.`公司中文名称`)
+              AND (c2.`公司中文名称` CONTAINS '{node2}' OR '{node2}' CONTAINS c2.`公司中文名称`)
+              AND c1 <> c2
+            RETURN type(r) as relationship_type, c1, c2, r
+        """
+    
+    print(f"[QueryRelationship] 执行查询: {query[:200]}...")
+    try:
+        result = graph.run(query).data()
+        print(f"[QueryRelationship] 查询结果: {len(result)} 条")
+        
+        for record in result:
+            c1 = record['c1']
+            c2 = record['c2']
+            rel = record['r']
+            rel_type = record['relationship_type']
+            
+            # 去重
+            key = tuple(sorted([c1.get('社会信用代码', ''), c2.get('社会信用代码', '')])) + (rel_type,)
+            if key in seen:
+                continue
+            seen.add(key)
+            
+            print(f"[QueryRelationship] 找到关系: {c1.get('公司中文名称', '')} -{rel_type}-> {c2.get('公司中文名称', '')}")
+            
+            relationships.append({
+                'start_node': {
+                    'company_name': c1.get('公司中文名称', ''),
+                    'credit_number': c1.get('社会信用代码', '')
+                },
+                'end_node': {
+                    'company_name': c2.get('公司中文名称', ''),
+                    'credit_number': c2.get('社会信用代码', '')
+                },
+                'relation_type': rel_type,
+                'attributes': dict(rel)
+            })
+    except Exception as e:
+        print(f"[QueryRelationship] 查询异常: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    
+    print(f"[QueryRelationship] 查询完成，共找到 {len(relationships)} 条关系")
+    return relationships
 def QueryRelationship_byname(node1, node2, relationship):
     query = ''
     if relationship:
@@ -383,54 +543,32 @@ def query_relationship(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            relation_name = data['relation_name']
-            print(f"[query_relationship] 收到请求 - company1: {data.get('company1')}, company2: {data.get('company2')}, relation_name: {relation_name}")
+            relation_name = data.get('relation_name', '').strip() or None
+            company1_data = data.get('company1', [])
+            company2_data = data.get('company2', [])
             
-            if data['company1'] and data['company2']:
-                label1 = data['company1'][0]['label']
-                value1 = data['company1'][0]['value']
-                label2 = data['company2'][0]['label']
-                value2 = data['company2'][0]['value']
-                print(f"[query_relationship] 查询公司1 - label: {label1}, value: {value1}")
-                print(f"[query_relationship] 查询公司2 - label: {label2}, value: {value2}")
-                
-                node1 = None
-                node2 = None
-                if label1 == 'company_name':
-                    node1 = matcher.match("Company").where(f"_.公司中文名称= '{value1}'").first()
-                elif label1 == 'credit_number':
-                    node1 = matcher.match("Company").where(f"_.社会信用代码= '{value1}'").first()
-                if label2 == 'company_name':
-                    node2 = matcher.match("Company").where(f"_.公司中文名称= '{value2}'").first()
-                elif label2 == 'credit_number':
-                    node2 = matcher.match("Company").where(f"_.社会信用代码= '{value2}'").first()
-                
-                print(f"[query_relationship] 查询结果 - node1: {node1 is not None}, node2: {node2 is not None}")
-                
-                if not node1 or not node2 and not relation_name:
-                    print(f"[query_relationship] 错误: 公司不存在 - node1存在: {node1 is not None}, node2存在: {node2 is not None}, relation_name: {relation_name}")
-                    return JsonResponse({'status': 'error', 'message': 'company not existed'})
-                elif node1 and node2:
-                    com1 = dict(node1)
-                    com2 = dict(node2)
-                    print(f"[query_relationship] 开始查询关系 - 公司1代码: {com1['社会信用代码']}, 公司2代码: {com2['社会信用代码']}, 关系类型: {relation_name}")
-                    relation_data = QueryRelationship(com1['社会信用代码'], com2['社会信用代码'], relation_name)
-                    if not relation_data:
-                        print(f"[query_relationship] 错误: 关系不存在 - 公司1: {com1['社会信用代码']}, 公司2: {com2['社会信用代码']}, 关系: {relation_name}")
-                        return JsonResponse({'status': 'error', 'message': 'no relationship exists'})
-                    else:
-                        formatted_relation_data = format_relationship_data(relation_data)
-                        print(f"[query_relationship] 成功: 找到 {len(formatted_relation_data)} 条关系数据")
-                        return JsonResponse({'status': 'success', 'relationships': formatted_relation_data})
-            elif relation_name:
-                print(f"[query_relationship] 仅查询关系类型: {relation_name}")
-                relation_data = QueryRelationship_withnonode(relation_name)
-                formatted_relation_data = format_relationship_data(relation_data)
-                print(f"[query_relationship] 成功: 找到 {len(formatted_relation_data)} 条关系数据")
-                return JsonResponse({'status': 'success', 'relationships': formatted_relation_data})
+            print(f"[query_relationship] 收到请求 - company1: {company1_data}, company2: {company2_data}, relation_name: {relation_name}")
+            
+            if not company1_data or not company2_data:
+                return JsonResponse({'status': 'error', 'message': '请输入两个公司信息'}, status=400)
+            
+            # 获取公司1的查询值（名称或信用代码）
+            label1 = company1_data[0]['label']
+            value1 = company1_data[0]['value']
+            
+            # 获取公司2的查询值（名称或信用代码）
+            label2 = company2_data[0]['label']
+            value2 = company2_data[0]['value']
+            
+            # 调用QueryRelationship查询关系（支持模糊匹配）
+            relation_data = QueryRelationship(value1, value2, relation_name)
+            
+            if not relation_data:
+                print(f"[query_relationship] 未找到关系 - 公司1: {value1}, 公司2: {value2}, 关系: {relation_name}")
+                return JsonResponse({'status': 'success', 'relationships': [], 'message': '未找到两个公司之间的关系'})
             else:
-                print(f"[query_relationship] 警告: 参数不足，请重试")
-                return JsonResponse({'status': 'success', 'message': 'please try again'})
+                print(f"[query_relationship] 成功: 找到 {len(relation_data)} 条关系数据")
+                return JsonResponse({'status': 'success', 'relationships': relation_data})
         except Exception as e:
             print(f"[query_relationship] 异常错误: {str(e)}")
             import traceback
@@ -1583,6 +1721,177 @@ class RelatedCompanyNetworkView(APIView):
                     'cust_count': 0,
                     'supplier_count': 0
                 })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+class RelationTestCasesView(APIView):
+    """
+    获取关系查询测试用例API
+    统计图谱中所有关系类型及其数量，并为每种关系类型提供测试案例
+    """
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            # 1. 获取关系类型分布（只统计Company相关的关系）
+            rel_dist_query = """
+                MATCH ()-[r]->()
+                RETURN type(r) AS relType, count(*) AS cnt
+                ORDER BY cnt DESC
+            """
+            rel_dist = graph.run(rel_dist_query).data()
+            relationship_distribution = {row['relType']: row['cnt'] for row in rel_dist}
+            
+            # 2. 专门查询Company之间的关系类型和示例
+            company_rel_query = """
+                MATCH (c1:Company)-[r]->(c2:Company)
+                RETURN type(r) AS relType, count(*) AS cnt
+                ORDER BY cnt DESC
+            """
+            company_rel_dist = graph.run(company_rel_query).data()
+            
+            # 3. 为每种Company之间的关系类型找到测试案例
+            test_cases = []
+            
+            for row in company_rel_dist:
+                rel_type = row['relType']
+                rel_count = row['cnt']
+                
+                # 处理中文关系类型需要反引号
+                rel_pattern = f"`{rel_type}`" if any('\u4e00' <= c <= '\u9fff' for c in rel_type) else rel_type
+                
+                # 查询Company节点之间的关系示例
+                case_query = f"""
+                    MATCH (c1:Company)-[r:{rel_pattern}]->(c2:Company)
+                    RETURN c1.`公司中文名称` as company1, c2.`公司中文名称` as company2, type(r) as rel_type
+                    LIMIT 3
+                """
+                
+                try:
+                    cases = graph.run(case_query).data()
+                    if cases:
+                        for case in cases:
+                            test_cases.append({
+                                'relation_type': rel_type,
+                                'company1': case['company1'],
+                                'company2': case['company2'],
+                                'expected_relation': case['rel_type'],
+                                'test_type': 'positive'
+                            })
+                except Exception as e:
+                    print(f"查询关系类型 {rel_type} 失败: {str(e)}")
+            
+            # 4. 如果没有找到足够的测试用例，尝试更宽松的查询
+            if len(test_cases) < 5:
+                fallback_query = """
+                    MATCH (c1:Company)-[r]-(c2:Company)
+                    WHERE c1 <> c2
+                    RETURN c1.`公司中文名称` as company1, c2.`公司中文名称` as company2, type(r) as rel_type
+                    LIMIT 20
+                """
+                fallback_cases = graph.run(fallback_query).data()
+                seen_pairs = set()
+                
+                for case in fallback_cases:
+                    pair_key = (case['company1'], case['company2'], case['rel_type'])
+                    if pair_key not in seen_pairs:
+                        seen_pairs.add(pair_key)
+                        test_cases.append({
+                            'relation_type': case['rel_type'],
+                            'company1': case['company1'],
+                            'company2': case['company2'],
+                            'expected_relation': case['rel_type'],
+                            'test_type': 'positive'
+                        })
+            
+            # 5. 添加负向测试用例
+            negative_cases = [
+                {
+                    'test_id': 'TC_N001',
+                    'company1': '不存在的公司ABC123',
+                    'company2': '测试公司XYZ',
+                    'expected_result': '查不到两个公司的关系',
+                    'test_type': 'negative'
+                },
+                {
+                    'test_id': 'TC_N002',
+                    'company1': '',
+                    'company2': '',
+                    'expected_result': '请输入公司信息',
+                    'test_type': 'negative'
+                }
+            ]
+            
+            return Response({
+                'status': 'success',
+                'total_relationship_types': len(rel_dist),
+                'total_relationships': sum(row['cnt'] for row in rel_dist),
+                'company_relationship_types': len(company_rel_dist),
+                'company_relationships': sum(row['cnt'] for row in company_rel_dist),
+                'relationship_distribution': relationship_distribution,
+                'company_relationship_distribution': {row['relType']: row['cnt'] for row in company_rel_dist},
+                'positive_test_cases': test_cases,
+                'negative_test_cases': negative_cases
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+class TestRelationQueryView(APIView):
+    """
+    测试关系查询API - 直接使用公司名称查询关系
+    用于调试和验证关系查询功能
+    """
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            company1 = request.query_params.get('company1', '')
+            company2 = request.query_params.get('company2', '')
+            
+            if not company1 or not company2:
+                return Response({'status': 'error', 'message': '请提供company1和company2参数'}, status=400)
+            
+            print(f"[TestRelationQuery] 测试查询 - company1: '{company1}', company2: '{company2}'")
+            
+            # 直接使用公司名称进行查询
+            query = f"""
+                MATCH (c1:Company)-[r]-(c2:Company) 
+                WHERE (c1.`公司中文名称` CONTAINS '{company1}' OR '{company1}' CONTAINS c1.`公司中文名称`)
+                  AND (c2.`公司中文名称` CONTAINS '{company2}' OR '{company2}' CONTAINS c2.`公司中文名称`)
+                  AND c1 <> c2
+                RETURN type(r) as relationship_type, c1.`公司中文名称` as company1_name, c2.`公司中文名称` as company2_name, c1.`社会信用代码` as credit1, c2.`社会信用代码` as credit2, r
+                LIMIT 20
+            """
+            
+            print(f"[TestRelationQuery] 执行查询: {query}")
+            result = graph.run(query).data()
+            print(f"[TestRelationQuery] 查询结果: {len(result)} 条")
+            
+            relationships = []
+            for record in result:
+                relationships.append({
+                    'relationship_type': record['relationship_type'],
+                    'company1_name': record['company1_name'],
+                    'company2_name': record['company2_name'],
+                    'credit1': record['credit1'],
+                    'credit2': record['credit2'],
+                    'attributes': dict(record['r'])
+                })
+            
+            return Response({
+                'status': 'success',
+                'query': query,
+                'count': len(relationships),
+                'relationships': relationships
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
             import traceback

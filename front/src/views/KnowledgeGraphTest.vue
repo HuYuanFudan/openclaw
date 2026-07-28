@@ -3,10 +3,8 @@
     <h1>{{ pageTitle }}</h1>
     <p class="description">{{ pageDescription }}</p>
 
-    <el-tabs v-model="activeTab" type="border-card" class="test-tabs">
-      <!-- 1. 实体分布统计 -->
-      <el-tab-pane label="① 实体分布统计" name="stats">
-        <div class="tab-section">
+    <!-- 1. 实体分布统计 -->
+    <div v-show="activeTab === 'stats'" class="tab-section">
           <!-- 顶部总数卡片 -->
           <div class="stat-grid">
             <el-card shadow="hover" class="stat-card stat-total">
@@ -209,11 +207,9 @@
 
           </el-row>
         </div>
-      </el-tab-pane>
 
-      <!-- 2. 图谱金融风险知识 -->
-      <el-tab-pane label="② 图谱金融风险知识" name="risk">
-        <div class="tab-section">
+    <!-- 2. 图谱金融风险知识 -->
+    <div v-show="activeTab === 'risk'" class="tab-section">
           <!-- 顶部说明 -->
           <el-alert type="info" :closable="false" show-icon
             title="图谱金融风险知识"
@@ -796,11 +792,9 @@
             </el-col>
           </el-row>
         </div>
-      </el-tab-pane>
 
-      <!-- 7. 图谱浏览与性能测试 -->
-      <el-tab-pane label="④ 图谱浏览与性能" name="browse">
-        <div class="tab-section">
+    <!-- 7. 图谱浏览与性能测试 -->
+    <div v-show="activeTab === 'browse'" class="tab-section">
           <el-row :gutter="16">
             <!-- 左侧：图谱浏览画布 -->
             <el-col :span="16">
@@ -956,11 +950,9 @@
             </el-col>
           </el-row>
         </div>
-      </el-tab-pane>
 
-      <!-- 8. 数据导入与抽取测试 -->
-      <el-tab-pane label="⑤ 数据导入与抽取" name="import-extract">
-        <div class="tab-section">
+    <!-- 8. 数据导入与抽取测试 -->
+    <div v-show="activeTab === 'import-extract'" class="tab-section">
           <el-row :gutter="16">
             <!-- 结构化数据导入 -->
             <el-col :span="12">
@@ -1257,8 +1249,6 @@
             </el-col>
           </el-row>
         </div>
-      </el-tab-pane>
-    </el-tabs>
   </div>
 </template>
 

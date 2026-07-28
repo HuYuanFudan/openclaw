@@ -31,7 +31,9 @@ from .views import (
     RiskPathView,
     RelationDistributionView,
     RelatedCompanyNetworkView,
-    RiskCaseDataView
+    RiskCaseDataView,
+    RelationTestCasesView,
+    TestRelationQueryView
 )
 from rest_framework.routers import DefaultRouter
 
@@ -67,6 +69,8 @@ urlpatterns = [
     path('relation_distribution/', RelationDistributionView.as_view(), name='relation_distribution'),
     path('related_company_network/', RelatedCompanyNetworkView.as_view(), name='related_company_network'),
     path('risk_case_data/', RiskCaseDataView.as_view(), name='risk_case_data'),
+    path('relation_test_cases/', RelationTestCasesView.as_view(), name='relation_test_cases'),
+    path('test_relation_query/', TestRelationQueryView.as_view(), name='test_relation_query'),
     # path('meta/create_meta_knowledge/', views.MetaKnowledgeViewSet.as_view({'post': 'create_meta_knowledge'}), name='create_meta_knowledge'),
 ] + router.urls
 
