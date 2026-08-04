@@ -1394,6 +1394,15 @@ class RiskCaseDataView(APIView):
                     print(f"  查询失败: {e}")
                     return []
 
+            def count_query(cypher, **params):
+                """执行 COUNT 查询，返回 total 字段；失败返回 0"""
+                try:
+                    result = graph.run(cypher, **params).data()
+                    return result[0]['total'] if result else 0
+                except Exception as e:
+                    print(f"  统计失败: {e}")
+                    return 0
+
             def count_relations(rel_name):
                 try:
                     cypher = f"MATCH ()-[r:`{rel_name}`]->() RETURN count(r) as total"
@@ -1409,6 +1418,27 @@ class RiskCaseDataView(APIView):
                     return result[0]['total'] if result else 0
                 except:
                     return 0
+
+            def count_metaknowledge(keywords):
+                """
+                统计 core_conclusion 命中任一关键词的 MetaKnowledge 节点数。
+                用于把"风险知识"按子类精确计数，避免所有子类都返回 MetaKnowledge 总数。
+                """
+                if not keywords:
+                    return count_nodes("MetaKnowledge")
+                cond = " OR ".join([f"n.core_conclusion CONTAINS $kw{i}" for i in range(len(keywords))])
+                params = {f"kw{i}": kw for i, kw in enumerate(keywords)}
+                cypher = f"MATCH (n:MetaKnowledge) WHERE {cond} RETURN count(n) as total"
+                return count_query(cypher, **params)
+
+            def count_violations(extra_where=""):
+                """
+                统计违规事件关系数，可附加对 Violation 节点的过滤条件。
+                extra_where: 形如 "v.`违规类型` CONTAINS '披露'" 的 Cypher 片段（静态字面量，非用户输入）。
+                """
+                where = f"WHERE {extra_where}" if extra_where else ""
+                cypher = f"MATCH (c:Company)-[r:`违规事件`]->(v:Violation) {where} RETURN count(r) as total"
+                return count_query(cypher)
 
             # ============================================================
             # 1. 市场风险 (Market Risk)
@@ -1426,7 +1456,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['股票', '国债', '对冲'])
                     },
                     {
                         "name": "灾难风险溢价",
@@ -1437,7 +1467,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['灾难', '风险溢价', '尾部风险'])
                     },
                     {
                         "name": "期货对冲局限",
@@ -1448,7 +1478,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['期货', '股指期货', '国债期货'])
                     }
                 ]
             }
@@ -1488,13 +1518,12 @@ class RiskCaseDataView(APIView):
                         "name": "影子银行信用",
                         "description": "关联企业间的担保与借贷关系形成的隐性信用风险",
                         "cases": get_sample_cases("""
-                            MATCH (c1:Company)-[r:GUARANTEES]->(c2:Company)
-                            RETURN c1.`公司中文名称` as company, c2.`公司中文名称` as target,
-                                   r.`担保金额` as amount, r.`债权人类型` as creditor_type,
-                                   r.`债务类型` as debt_type, r.`担保方式` as guarantee_method
+                            MATCH (n:MetaKnowledge)
+                            WHERE n.core_conclusion CONTAINS '影子银行' OR n.core_conclusion CONTAINS '隐性债务' OR n.core_conclusion CONTAINS '关联交易' OR n.core_conclusion CONTAINS '隐性信用'
+                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_relations("GUARANTEES")
+                        "count": count_metaknowledge(['影子银行', '隐性债务', '关联交易', '隐性信用'])
                     }
                 ]
             }
@@ -1518,7 +1547,7 @@ class RiskCaseDataView(APIView):
                             ORDER BY v.`处罚日期` DESC
                             LIMIT 5
                         """),
-                        "count": count_relations("违规事件")
+                        "count": count_violations("v.`违规类型` CONTAINS '披露' OR v.`违规类型` CONTAINS '虚假' OR v.`违规类型` CONTAINS '遗漏'")
                     },
                     {
                         "name": "管理层策略性行为",
@@ -1529,7 +1558,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['管理层', '减持', '创新投入'])
                     },
                     {
                         "name": "网络安全感知",
@@ -1540,7 +1569,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['网络安全', '移动端', '投资者行为'])
                     }
                 ]
             }
@@ -1561,7 +1590,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['政策不确定性', '现金持有', '企业投资'])
                     },
                     {
                         "name": "跨境资本流动",
@@ -1572,7 +1601,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['跨境', '资本流动', '外资'])
                     },
                     {
                         "name": "投资者行为",
@@ -1583,7 +1612,7 @@ class RiskCaseDataView(APIView):
                             RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
                             LIMIT 5
                         """),
-                        "count": count_nodes("MetaKnowledge")
+                        "count": count_metaknowledge(['投资者', '赎回', '行为'])
                     }
                 ]
             }
@@ -1607,7 +1636,7 @@ class RiskCaseDataView(APIView):
                             ORDER BY v.`处罚日期` DESC
                             LIMIT 5
                         """),
-                        "count": count_relations("违规事件")
+                        "count": count_violations("v.`处理单位` IS NOT NULL")
                     },
                     {
                         "name": "诉讼仲裁",
@@ -1634,7 +1663,7 @@ class RiskCaseDataView(APIView):
                                    c.`所属行业` as industry, c.`A股证券代码` as stock_code
                             LIMIT 5
                         """),
-                        "count": count_nodes("Company")
+                        "count": count_query("MATCH (c:Company) WHERE c.`股票简称` IS NOT NULL AND (c.`股票简称` CONTAINS 'ST' OR c.`股票简称` CONTAINS '*ST') RETURN count(c) as total")
                     }
                 ]
             }

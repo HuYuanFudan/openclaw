@@ -225,7 +225,7 @@
                   <el-icon :size="28" color="#fff"><component :is="r.icon" /></el-icon>
                 </div>
                 <div class="rcc-name">{{ r.name }}</div>
-                <div class="rcc-count">{{ r.count.toLocaleString() }} 条</div>
+                <div class="rcc-count">{{ (riskTotals[r.name] ?? r.count ?? 0).toLocaleString() }} 条</div>
                 <div class="rcc-desc">{{ r.desc }}</div>
               </el-card>
             </el-col>
@@ -1306,13 +1306,22 @@ export default {
           count: 92457,
           desc: '监管处罚、诉讼仲裁与负面事件影响' }
       ],
-      riskTypeRows: [
-        { category: '市场风险', count: 56, pct: 0.04, source: 'MetaKnowledge / 证券市场数据' },
-        { category: '信用风险', count: 35788, pct: 25.8, source: 'GUARANTEES / PLEDGE / 担保质押' },
-        { category: '操作风险', count: 18776, pct: 13.5, source: 'Violation / 违规处罚记录' },
-        { category: '流动性风险', count: 22, pct: 0.02, source: 'MetaKnowledge / 投资者行为研究' },
-        { category: '声誉风险', count: 92457, pct: 66.8, source: 'Violation / Litigation / 处罚诉讼' }
-      ],
+      // riskTypeRows 已改为 computed，数量与占比由 riskCaseData 动态计算
+      riskTypeRowsSources: {
+        '市场风险': 'MetaKnowledge / 证券市场数据',
+        '信用风险': 'GUARANTEES / PLEDGE / 担保质押',
+        '操作风险': 'Violation / 违规处罚记录',
+        '流动性风险': 'MetaKnowledge / 投资者行为研究',
+        '声誉风险': 'Violation / Litigation / 处罚诉讼'
+      },
+      // riskCaseData 尚未加载时的兜底数量（与 financialRiskCards 的 count 对齐）
+      riskTotalsFallback: {
+        '市场风险': 56,
+        '信用风险': 35788,
+        '操作风险': 18776,
+        '流动性风险': 22,
+        '声誉风险': 92457
+      },
       keyRiskIndicators: [
         { indicator: '诉讼仲裁案件', riskType: '声誉风险', count: 73681, implication: '大额诉讼及司法执行损害公司市场声誉' },
         { indicator: '违规处罚记录', riskType: '操作风险', count: 18776, implication: '信息披露与合规管理缺陷' },
@@ -1733,6 +1742,47 @@ export default {
     instanceCount() {
       return this.instances.length;
     },
+    // 五大风险类型 → 后端 riskCaseData 的 key 映射
+    riskCategoryMap() {
+      return {
+        '市场风险': 'market_risk',
+        '信用风险': 'credit_risk',
+        '操作风险': 'operational_risk',
+        '流动性风险': 'liquidity_risk',
+        '声誉风险': 'reputation_risk'
+      };
+    },
+    // 各风险类型总条数 = 其下所有子类型 count 之和（保证与“风险类型详细分析”一致）
+    // riskCaseData 尚未加载时使用兜底值，保证卡片与分布表始终同源
+    riskTotals() {
+      const totals = {};
+      Object.entries(this.riskCategoryMap).forEach(([name, key]) => {
+        const cat = this.riskCaseData && this.riskCaseData[key];
+        if (cat && Array.isArray(cat.sub_types)) {
+          totals[name] = cat.sub_types.reduce((s, st) => s + (st.count || 0), 0);
+        } else {
+          totals[name] = this.riskTotalsFallback[name] || 0;
+        }
+      });
+      return totals;
+    },
+    // 全部风险类型合计，用于计算占比分母
+    riskGrandTotal() {
+      return Object.values(this.riskTotals).reduce((s, n) => s + n, 0);
+    },
+    // 五大风险类型分布表：count 取自 riskTotals，pct 由 riskGrandTotal 派生，保证与详细分析一致
+    riskTypeRows() {
+      const total = this.riskGrandTotal || 1;
+      return Object.keys(this.riskCategoryMap).map(name => {
+        const count = this.riskTotals[name] || 0;
+        return {
+          category: name,
+          count,
+          pct: +(count / total * 100).toFixed(2),
+          source: this.riskTypeRowsSources[name] || ''
+        };
+      });
+    },
     pageTitle() {
       const titles = {
         stats: '实体分布统计',
@@ -1971,6 +2021,10 @@ export default {
         const d = response.data;
         if (d && d.status === 'success') {
           this.riskCaseData = d.data;
+          // 卡片总数与分布表均由 riskCaseData 派生，数据更新后需重绘风险分布图
+          this.$nextTick(() => requestAnimationFrame(() => {
+            if (this.activeTab === 'risk') this.drawRiskCharts();
+          }));
         }
       } catch (err) {
         console.error('获取风险案例数据失败:', err);
