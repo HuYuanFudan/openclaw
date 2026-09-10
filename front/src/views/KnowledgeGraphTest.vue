@@ -954,34 +954,30 @@
     <!-- 8. 数据导入与抽取测试 -->
     <div v-show="activeTab === 'import-extract'" class="tab-section">
           <el-row :gutter="16">
-            <!-- 结构化数据导入 -->
+            <!-- 实体导入 -->
             <el-col :span="12">
-              <el-card header="结构化数据导入" class="panel">
-                <el-tabs type="border-card" size="small">
-                  <el-tab-pane label="CSV/Excel">
-                    <el-upload drag action="" :auto-upload="false" :on-change="onStructuredFileChange" accept=".csv,.xlsx,.xls"
-                      style="width:100%">
-                      <el-icon :size="40" style="margin:20px 0 10px"><upload-filled /></el-icon>
-                      <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
-                      <template #tip>
-                        <div class="el-upload__tip">支持 CSV、Excel 格式，需包含表头行</div>
-                      </template>
-                    </el-upload>
-                    <el-divider />
-                    <el-form v-if="structuredPreview" label-width="100px" size="small">
-                      <el-form-item label="数据源">
-                        <el-tag>{{ structuredPreview.source }}</el-tag>
-                      </el-form-item>
-                      <el-form-item label="字段映射">
-                        <el-table :data="structuredPreview.mappings" size="small" border
-                          @cell-click="editMapping"
-                        >
+              <el-card header="实体导入" class="panel">
+                <el-upload drag action="" :auto-upload="false" :on-change="onEntityFileChange" accept=".csv,.xlsx,.xls"
+                  style="width:100%">
+                  <el-icon :size="40" style="margin:20px 0 10px"><upload-filled /></el-icon>
+                  <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
+                  <template #tip>
+                    <div class="el-upload__tip">支持 CSV、Excel 格式，每行为一个实体，需包含表头行</div>
+                  </template>
+                </el-upload>
+                <el-divider />
+                <el-form v-if="entityImport.source" label-width="100px" size="small">
+                  <el-form-item label="数据源">
+                    <el-tag>{{ entityImport.source }}</el-tag>
+                  </el-form-item>
+                  <el-form-item label="字段映射">
+                    <el-collapse style="width:100%">
+                      <el-collapse-item :title="`已自动映射 ${entityImport.mappings.length} 列，点击展开调整（可排除不需要的列）`">
+                        <el-table :data="entityImport.mappings" size="small" border>
                           <el-table-column prop="sourceField" label="源字段" />
                           <el-table-column prop="targetType" label="实体类型">
                             <template #default="s">
-                              <el-select v-model="s.row.targetType" size="small" style="width:100%"
-                                @change="updateMapping(s.row)"
-                              >
+                              <el-select v-model="s.row.targetType" size="small" style="width:100%">
                                 <el-option v-for="t in allNodeTypes" :key="t" :label="t" :value="t" />
                               </el-select>
                             </template>
@@ -991,105 +987,154 @@
                               <el-input v-model="s.row.targetProp" size="small" />
                             </template>
                           </el-table-column>
-                        </el-table>
-                      </el-form-item>
-                      <el-form-item label="关系映射">
-                        <el-button size="small" @click="addRelationMapping">+ 添加关系映射</el-button>
-                        <el-table :data="structuredPreview.relationMappings" size="small" border style="margin-top:8px"
-                          v-if="structuredPreview.relationMappings.length"
-                        >
-                          <el-table-column prop="fromField" label="起始字段" />
-                          <el-table-column prop="toField" label="目标字段" />
-                          <el-table-column prop="relType" label="关系类型">
+                          <el-table-column label="操作" width="60">
                             <template #default="s">
-                              <el-select v-model="s.row.relType" size="small"
-                                @change="updateRelationMapping(s.row)"
-                              >
-                                <el-option v-for="r in allRelationTypes" :key="r" :label="r" :value="r" />
-                              </el-select>
+                              <el-button size="small" type="danger" text
+                                @click="entityImport.mappings.splice(s.$index, 1)"
+                              >排除</el-button>
                             </template>
                           </el-table-column>
                         </el-table>
-                      </el-form-item>
-                      <el-form-item>
-                        <el-button type="primary" @click="previewImport">预览导入</el-button>
-                        <el-button @click="executeImport" :loading="importing">{{ importing?'导入中...':'执行导入' }}</el-button>
-                      </el-form-item>
-                    </el-form>
-                  </el-tab-pane>
-                  <el-tab-pane label="关系数据库">
-                    <el-form label-width="100px" size="small">
-                      <el-form-item label="数据库类型">
-                        <el-select v-model="dbConfig.type" style="width:100%">
-                          <el-option label="MySQL" value="mysql" />
-                          <el-option label="PostgreSQL" value="postgresql" />
-                          <el-option label="Oracle" value="oracle" />
-                          <el-option label="SQL Server" value="mssql" />
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item label="连接信息">
-                        <el-input v-model="dbConfig.host" placeholder="主机:端口" style="width:48%" />
-                        <el-input v-model="dbConfig.database" placeholder="数据库名" style="width:48%;margin-left:4%" />
-                      </el-form-item>
-                      <el-form-item>
-                        <el-input v-model="dbConfig.username" placeholder="用户名" style="width:48%" />
-                        <el-input v-model="dbConfig.password" placeholder="密码" type="password" style="width:48%;margin-left:4%" />
-                      </el-form-item>
-                      <el-form-item label="SQL 查询">
-                        <el-input v-model="dbConfig.sql" type="textarea" :rows="3" placeholder="SELECT * FROM ..." />
-                      </el-form-item>
-                      <el-form-item>
-                        <el-button type="primary" @click="testDbConnection">测试连接</el-button>
-                        <el-button @click="loadDbSchema">加载表结构</el-button>
-                      </el-form-item>
-                    </el-form>
-                  </el-tab-pane>
-                  <el-tab-pane label="API 接口">
-                    <el-form label-width="100px" size="small">
-                      <el-form-item label="请求方法">
-                        <el-radio-group v-model="apiConfig.method">
-                          <el-radio-button label="GET">GET</el-radio-button>
-                          <el-radio-button label="POST">POST</el-radio-button>
-                        </el-radio-group>
-                      </el-form-item>
-                      <el-form-item label="接口地址">
-                        <el-input v-model="apiConfig.url" placeholder="https://api.example.com/data" />
-                      </el-form-item>
-                      <el-form-item label="认证方式">
-                        <el-select v-model="apiConfig.authType" style="width:100%">
-                          <el-option label="无认证" value="none" />
-                          <el-option label="Bearer Token" value="bearer" />
-                          <el-option label="API Key" value="apikey" />
-                          <el-option label="Basic Auth" value="basic" />
-                        </el-select>
-                      </el-form-item>
-                      <el-form-item label="Headers">
-                        <el-input v-model="apiConfig.headers" type="textarea" :rows="2" placeholder='{"Content-Type": "application/json"}' />
-                      </el-form-item>
-                      <el-form-item>
-                        <el-button type="primary" @click="testApiConnection">测试接口</el-button>
-                        <el-button @click="fetchApiData">获取数据</el-button>
-                      </el-form-item>
-                    </el-form>
-                  </el-tab-pane>
-                </el-tabs>
-
-                <!-- 导入进度与日志 -->
-                <el-divider />
-                <el-card v-if="importProgress.show" header="导入进度" shadow="never">
-                  <el-progress :percentage="importProgress.percent" :status="importProgress.status" />
-                  <div style="margin-top:8px">
-                    <el-tag>已处理: {{ importProgress.processed }}/{{ importProgress.total }}</el-tag>
-                    <el-tag type="success">成功: {{ importProgress.success }}</el-tag>
-                    <el-tag type="danger">失败: {{ importProgress.failed }}</el-tag>
-                  </div>
-                  <el-collapse style="margin-top:8px">
-                    <el-collapse-item title="错误日志">
-                      <pre class="error-log">{{ importProgress.errors.join('\n') || '暂无错误' }}</pre>
-                    </el-collapse-item>
-                  </el-collapse>
-                </el-card>
+                      </el-collapse-item>
+                    </el-collapse>
+                  </el-form-item>
+                  <el-form-item label="批量大小">
+                    <el-input-number v-model="batchConfig.batchSize" :min="100" :max="10000" :step="100"
+                      size="small" style="width:160px" />
+                    <span style="margin-left:8px;color:#909399;font-size:12px">每批写入行数</span>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" @click="previewImport">预览导入</el-button>
+                    <el-button @click="executeImport" :loading="entityImport.importing">{{ entityImport.importing?'导入中...':'执行导入' }}</el-button>
+                  </el-form-item>
+                </el-form>
               </el-card>
+
+              <!-- 关系导入 -->
+              <el-card header="关系导入" class="panel">
+                <el-upload drag action="" :auto-upload="false" :on-change="onRelationFileChange" accept=".csv,.xlsx,.xls"
+                  style="width:100%">
+                  <el-icon :size="40" style="margin:20px 0 10px"><connection /></el-icon>
+                  <div class="el-upload__text">拖拽关系文件到此处或 <em>点击上传</em></div>
+                  <template #tip>
+                    <div class="el-upload__tip">每行为一条关系，起止端点需为图中已存在的节点（不创建新节点）</div>
+                  </template>
+                </el-upload>
+                <el-divider />
+                <el-form v-if="relationImport.source" label-width="100px" size="small">
+                  <el-form-item label="数据源">
+                    <el-tag>{{ relationImport.source }}</el-tag>
+                  </el-form-item>
+                  <el-form-item label="关系类型">
+                    <el-select v-model="relationImport.relType" size="small" filterable style="width:100%"
+                      placeholder="选择关系类型">
+                      <el-option v-for="r in allRelationTypes" :key="r" :label="r" :value="r" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="起点">
+                    <div style="display:flex;gap:6px;width:100%">
+                      <el-select v-model="relationImport.fromField" size="small" style="flex:1.2"
+                        placeholder="源字段">
+                        <el-option v-for="f in relationImport.fields" :key="f" :label="f" :value="f" />
+                      </el-select>
+                      <el-select v-model="relationImport.fromLabel" size="small" style="flex:1"
+                        placeholder="节点类型">
+                        <el-option v-for="t in allNodeTypes" :key="t" :label="t" :value="t" />
+                      </el-select>
+                      <el-input v-model="relationImport.fromProp" size="small" style="flex:1"
+                        placeholder="匹配属性" />
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="终点">
+                    <div style="display:flex;gap:6px;width:100%">
+                      <el-select v-model="relationImport.toField" size="small" style="flex:1.2"
+                        placeholder="源字段">
+                        <el-option v-for="f in relationImport.fields" :key="f" :label="f" :value="f" />
+                      </el-select>
+                      <el-select v-model="relationImport.toLabel" size="small" style="flex:1"
+                        placeholder="节点类型">
+                        <el-option v-for="t in allNodeTypes" :key="t" :label="t" :value="t" />
+                      </el-select>
+                      <el-input v-model="relationImport.toProp" size="small" style="flex:1"
+                        placeholder="匹配属性" />
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="关系属性">
+                    <el-button size="small" @click="relationImport.props.push({ relProp: '', sourceField: '' })">+ 添加属性映射</el-button>
+                    <el-table :data="relationImport.props" size="small" border style="margin-top:8px"
+                      v-if="relationImport.props.length"
+                    >
+                      <el-table-column prop="relProp" label="关系属性名">
+                        <template #default="s">
+                          <el-input v-model="s.row.relProp" size="small" placeholder="如：担保金额万元" />
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="sourceField" label="源字段">
+                        <template #default="s">
+                          <el-select v-model="s.row.sourceField" size="small" placeholder="选择字段">
+                            <el-option v-for="f in relationImport.fields" :key="f" :label="f" :value="f" />
+                          </el-select>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="60">
+                        <template #default="s">
+                          <el-button size="small" type="danger" text
+                            @click="relationImport.props.splice(s.$index, 1)"
+                          >删</el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" @click="importRelations" :loading="relationImport.importing">{{ relationImport.importing?'导入中...':'执行导入' }}</el-button>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+
+              <!-- 导入进度与日志（实体/关系共用） -->
+              <el-card v-if="importProgress.show" header="导入进度" shadow="never" class="panel">
+                <el-progress :percentage="importProgress.percent" :status="importProgress.status" />
+                <div style="margin-top:8px">
+                  <el-tag>已处理: {{ importProgress.processed }}/{{ importProgress.total }}</el-tag>
+                  <el-tag type="success">成功: {{ importProgress.success }}</el-tag>
+                  <el-tag type="danger">失败: {{ importProgress.failed }}</el-tag>
+                </div>
+                <el-collapse style="margin-top:8px">
+                  <el-collapse-item :title="`错误日志${importProgress.errors.length ? '（' + importProgress.errors.length + ' 条）' : ''}`">
+                    <div v-if="importProgress.errors.length" style="margin-bottom:8px">
+                      <el-button size="small" type="warning" @click="exportImportErrors">导出错误明细 CSV（修正后可重新导入）</el-button>
+                    </div>
+                    <pre class="error-log">{{ importProgress.errors.join('\n') || '暂无错误' }}</pre>
+                  </el-collapse-item>
+                </el-collapse>
+              </el-card>
+
+              <!-- 实体导入预览弹窗 -->
+              <el-dialog title="实体导入预览" v-model="previewDialogVisible" width="720px" append-to-body>
+                <div v-if="importPreviewResult">
+                  <el-descriptions :column="3" border size="small">
+                    <el-descriptions-item label="数据行数">{{ importPreviewResult.totalRows }}</el-descriptions-item>
+                    <el-descriptions-item label="将创建节点">{{ importPreviewResult.nodeCount }}</el-descriptions-item>
+                    <el-descriptions-item label="将创建关系">{{ importPreviewResult.relationCount }}</el-descriptions-item>
+                  </el-descriptions>
+                  <el-divider content-position="left">生成的 CREATE 语句</el-divider>
+                  <div class="cypher-preview">
+                    <pre v-for="ns in importPreviewResult.nodeStatements" :key="'n' + ns.targetType">{{ ns.cypher }}</pre>
+                    <pre v-for="rs in importPreviewResult.relationStatements" :key="'r' + rs.relType">{{ rs.cypher }}</pre>
+                  </div>
+                  <template v-if="importPreviewResult.sampleRows && importPreviewResult.sampleRows.length">
+                    <el-divider content-position="left">数据样例（前 5 行）</el-divider>
+                    <el-table :data="importPreviewResult.sampleRows" size="small" border max-height="260">
+                      <el-table-column v-for="col in importPreviewResult.columns" :key="col"
+                        :prop="col" :label="col" min-width="120" show-overflow-tooltip />
+                    </el-table>
+                  </template>
+                </div>
+                <template #footer>
+                  <el-button @click="previewDialogVisible = false">取消</el-button>
+                  <el-button type="primary" @click="previewDialogVisible = false; executeImport()">执行导入</el-button>
+                </template>
+              </el-dialog>
             </el-col>
 
             <!-- 半/非结构化抽取 -->
@@ -1110,31 +1155,17 @@
                     <el-divider />
                     <el-form label-width="100px" size="small">
                       <el-form-item label="抽取模型">
-                        <el-select v-model="extractConfig.model" style="width:100%">
-                          <el-option label="默认 NER 模型" value="default" />
-                          <el-option label="金融领域模型" value="finance" />
-                          <el-option label="法律领域模型" value="legal" />
-                          <el-option label="医疗领域模型" value="medical" />
-                          <el-option label="自定义模型" value="custom" />
+                        <el-select v-model="extractConfig.model" style="width:100%" filterable allow-create>
+                          <el-option label="qwen3:32b (本地)" value="qwen3:32b" />
                         </el-select>
-                      </el-form-item>
-                      <el-form-item label="抽取类型">
-                        <el-checkbox-group v-model="extractConfig.types">
-                          <el-checkbox label="entity">实体识别</el-checkbox>
-                          <el-checkbox label="relation">关系抽取</el-checkbox>
-                          <el-checkbox label="attribute">属性抽取</el-checkbox>
-                        </el-checkbox-group>
-                      </el-form-item>
-                      <el-form-item label="语言">
-                        <el-radio-group v-model="extractConfig.language">
-                          <el-radio-button label="zh">中文</el-radio-button>
-                          <el-radio-button label="en">英文</el-radio-button>
-                          <el-radio-button label="auto">自动检测</el-radio-button>
-                        </el-radio-group>
                       </el-form-item>
                       <el-form-item>
                         <el-button type="primary" @click="startExtraction" :loading="extracting"
                         >{{ extracting?'抽取中...':'开始抽取' }}</el-button>
+                      </el-form-item>
+                      <el-form-item v-if="extracting || extractProgress > 0" label="抽取进度">
+                        <el-progress :percentage="extractProgress" :stroke-width="10" style="width:100%" />
+                        <div style="font-size:12px;color:#909399;margin-top:4px">{{ extractStage }}</div>
                       </el-form-item>
                     </el-form>
                   </el-tab-pane>
@@ -1192,62 +1223,6 @@
               </el-card>
             </el-col>
           </el-row>
-
-          <!-- 批量构建与增量更新 -->
-          <el-row :gutter="16" style="margin-top:16px">
-            <el-col :span="12">
-              <el-card header="批量构建" class="panel">
-                <el-form label-width="100px" size="small">
-                  <el-form-item label="更新模式">
-                    <el-radio-group v-model="batchConfig.updateMode">
-                      <el-radio-button label="append">追加模式</el-radio-button>
-                      <el-radio-button label="merge">合并模式</el-radio-button>
-                      <el-radio-button label="replace">覆盖模式</el-radio-button>
-                      <el-radio-button label="version">版本隔离</el-radio-button>
-                    </el-radio-group>
-                    <div class="mode-desc">{{ batchModeDescriptions[batchConfig.updateMode] }}</div>
-                  </el-form-item>
-                  <el-form-item label="批量大小">
-                    <el-slider v-model="batchConfig.batchSize" :min="100" :max="10000" :step="100" show-input />
-                  </el-form-item>
-                  <el-form-item label="并发数">
-                    <el-slider v-model="batchConfig.concurrency" :min="1" :max="10" show-input />
-                  </el-form-item>
-                  <el-form-item>
-                    <el-button type="primary" @click="startBatchBuild" :loading="batchBuilding"
-                    >{{ batchBuilding?'构建中...':'开始批量构建' }}</el-button>
-                  </el-form-item>
-                </el-form>
-              </el-card>
-            </el-col>
-
-            <el-col :span="12">
-              <el-card header="构建结果" class="panel">
-                <el-empty v-if="!batchResult" description="尚未执行批量构建" />
-                <div v-else class="batch-result">
-                  <el-descriptions :column="2" border size="small">
-                    <el-descriptions-item label="开始时间">{{ batchResult.startTime }}</el-descriptions-item>
-                    <el-descriptions-item label="结束时间">{{ batchResult.endTime }}</el-descriptions-item>
-                    <el-descriptions-item label="总耗时">{{ batchResult.duration }}s</el-descriptions-item>
-                    <el-descriptions-item label="更新模式">{{ batchResult.updateMode }}</el-descriptions-item>
-                    <el-descriptions-item label="新增节点">{{ batchResult.newNodes }}</el-descriptions-item>
-                    <el-descriptions-item label="新增关系">{{ batchResult.newRelations }}</el-descriptions-item>
-                    <el-descriptions-item label="更新节点">{{ batchResult.updatedNodes }}</el-descriptions-item>
-                    <el-descriptions-item label="跳过节点">{{ batchResult.skippedNodes }}</el-descriptions-item>
-                  </el-descriptions>
-                  
-                  <el-divider />
-                  <h5>影响分析</h5>
-                  <el-alert
-                    :type="batchResult.impact==='low'?'success':batchResult.impact==='medium'?'warning':'error'"
-                    show-icon
-                    :title="batchResult.impactTitle"
-                    :description="batchResult.impactDesc"
-                  />
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
         </div>
   </div>
 </template>
@@ -1291,19 +1266,19 @@ export default {
       riskCaseLoading: false,  // 加载状态
       financialRiskCards: [
         { name: '市场风险', icon: 'DataAnalysis', color: '#409eff',
-          count: 56,
+          count: 231,
           desc: '股价波动、利率汇率、跨市场对冲与系统性风险' },
         { name: '信用风险', icon: 'Money', color: '#e6a23c',
-          count: 35788,
+          count: 35766,
           desc: '对外担保、股权质押、违约与融资能力风险' },
         { name: '操作风险', icon: 'Warning', color: '#f56c6c',
-          count: 18776,
+          count: 10642,
           desc: '信息披露违规、内部控制缺陷与管理层行为' },
         { name: '流动性风险', icon: 'Coin', color: '#67c23a',
-          count: 22,
+          count: 453,
           desc: '现金持有、融资压力、赎回与跨境资本流动' },
         { name: '声誉风险', icon: 'WarningFilled', color: '#9b59b6',
-          count: 92457,
+          count: 91151,
           desc: '监管处罚、诉讼仲裁与负面事件影响' }
       ],
       // riskTypeRows 已改为 computed，数量与占比由 riskCaseData 动态计算
@@ -1316,11 +1291,11 @@ export default {
       },
       // riskCaseData 尚未加载时的兜底数量（与 financialRiskCards 的 count 对齐）
       riskTotalsFallback: {
-        '市场风险': 56,
-        '信用风险': 35788,
-        '操作风险': 18776,
-        '流动性风险': 22,
-        '声誉风险': 92457
+        '市场风险': 231,
+        '信用风险': 35766,
+        '操作风险': 10642,
+        '流动性风险': 453,
+        '声誉风险': 91151
       },
       keyRiskIndicators: [
         { indicator: '诉讼仲裁案件', riskType: '声誉风险', count: 73681, implication: '大额诉讼及司法执行损害公司市场声誉' },
@@ -1330,9 +1305,9 @@ export default {
         { indicator: '风险警示公司', riskType: '声誉风险', count: 176, implication: 'ST/*ST 标识导致融资和经营受限' },
         { indicator: '客户经营异常', riskType: '信用风险', count: 8000, implication: '应收账款无法收回风险' },
         { indicator: '子公司退出', riskType: '信用风险', count: 227459, implication: '集团管控失效与剥离风险' },
-        { indicator: '灾难风险溢价', riskType: '市场风险', count: 39, implication: '解释约39.5%股权溢价的极端尾部风险' },
-        { indicator: '政策不确定性', riskType: '流动性风险', count: 17, implication: '抑制投资、提高现金持有' },
-        { indicator: '网络安全感知', riskType: '流动性风险', count: 5, implication: '安全事件诱发非理性赎回' }
+        { indicator: '灾难风险溢价', riskType: '市场风险', count: 56, implication: '解释约39.5%股权溢价的极端尾部风险' },
+        { indicator: '政策不确定性', riskType: '流动性风险', count: 25, implication: '抑制投资、提高现金持有' },
+        { indicator: '网络安全感知', riskType: '流动性风险', count: 15, implication: '安全事件诱发非理性赎回' }
       ],
       riskInsights: [
         { tag: '股债跷跷板', conclusion: '股票与国债现货存在显著互相对冲效应',
@@ -1714,28 +1689,39 @@ export default {
       perfTesting: false,
       perfResult: null,
       // === Tab ⑧: 数据导入与抽取 ===
-      // 结构化导入
-      structuredPreview: null,
-      importing: false,
-      importProgress: { show: false, percent: 0, status: '', processed: 0, total: 0, success: 0, failed: 0, errors: [] },
-      dbConfig: { type: 'mysql', host: '', database: '', username: '', password: '', sql: '' },
-      apiConfig: { method: 'GET', url: '', authType: 'none', headers: '{}' },
+      // 常见中文字段 -> 图谱标准属性名（实体导入自动映射用）
+      ENTITY_PROP_DICT: {
+        '公司名称': 'name', '公司名': 'name', '企业名称': 'name', '名称': 'name',
+        '社会信用代码': 'credit_code', '信用代码': 'credit_code', '统一社会信用代码': 'credit_code',
+        '省份': 'province', '省': 'province', '城市': 'city', '行业': 'industry'
+      },
+      // 实体导入
+      entityImport: { file: null, source: '', mappings: [], importing: false },
+      // 关系导入
+      relationImport: {
+        file: null, source: '', fields: [],
+        relType: '', fromField: '', toField: '',
+        fromLabel: 'Company', fromProp: 'name',
+        toLabel: 'Company', toProp: 'name',
+        props: [], importing: false
+      },
+      importPreviewResult: null,
+      previewDialogVisible: false,
+      importProgress: { show: false, percent: 0, status: '', processed: 0, total: 0, success: 0, failed: 0, errors: [], errorRows: [] },
       // 抽取
       extracting: false,
-      extractConfig: { model: 'default', types: ['entity', 'relation'], language: 'zh', confidenceThreshold: 0.7 },
+      extractConfig: { model: 'qwen3:32b' },
+      docFile: null,
+      extractProgress: 0,
+      extractStage: '',
       extractResults: null,
       selectedEntities: [],
       selectedRelations: [],
-      // 批量构建
-      batchBuilding: false,
-      batchConfig: { updateMode: 'append', batchSize: 1000, concurrency: 4 },
-      batchResult: null,
-      batchModeDescriptions: {
-        append: '追加模式：新数据追加到已有图谱，不影响现有数据',
-        merge: '合并模式：重复节点/关系会被合并属性，新增数据追加',
-        replace: '覆盖模式：清空已有图谱后重新导入全部数据',
-        version: '版本隔离：新数据创建为新版本，可随时切换回老版本'
-      }
+      // 导入执行参数
+      batchConfig: { batchSize: 1000 },
+      // 图谱 Schema（节点标签/关系类型，供导入映射下拉框）
+      allNodeTypes: [],
+      allRelationTypes: []
     };
   },
   computed: {
@@ -1958,6 +1944,8 @@ export default {
       this.fetchStats();
       // 获取风险案例数据
       this.fetchRiskCaseData();
+      // 获取图谱节点标签/关系类型（供导入映射下拉框）
+      this.fetchGraphSchema();
       // 若默认进入 stats tab，直接绘制图表
       if (this.activeTab === 'stats') {
         requestAnimationFrame(() => {
@@ -2620,84 +2608,289 @@ export default {
     },
 
     // === Tab ⑧: 数据导入与抽取 ===
-    onStructuredFileChange(file) {
-      this.structuredPreview = {
-        source: file.name,
-        mappings: [
-          { sourceField: '公司名称', targetType: 'Company', targetProp: 'name' },
-          { sourceField: '社会信用代码', targetType: 'Company', targetProp: 'credit_code' },
-          { sourceField: '省份', targetType: 'Company', targetProp: 'province' }
-        ],
-        relationMappings: []
-      };
-      ElMessage.success('文件已加载，请配置字段映射');
+    fetchGraphSchema() {
+      axios.get('/api/graph_schema/').then(res => {
+        const data = res.data || {};
+        if (data.status === 'success') {
+          this.allNodeTypes = (data.nodeLabels || []).map(n => n.name);
+          this.allRelationTypes = (data.relationshipTypes || []).map(r => r.name);
+        }
+      }).catch(() => { /* 加载失败时下拉框为空，不影响其他功能 */ });
     },
-    editMapping() {
-      // 编辑映射
-      ElMessage.info('编辑字段映射');
+    onEntityFileChange(file) {
+      this.entityImport.file = file.raw;
+      this.entityImport.source = file.name;
+      this.entityImport.mappings = [];
+      this.fetchHeaders(file.raw, (headers) => {
+        this.entityImport.mappings = headers.map(h => ({
+          sourceField: h,
+          // 常见字段自动映射到标准属性名（公司名称->name 等），其余默认用列名
+          targetType: 'Company',
+          targetProp: this.ENTITY_PROP_DICT[h] || h
+        }));
+        ElMessage.success('文件已加载，字段映射已自动生成，可按需调整');
+      });
     },
-    updateMapping(row) {
-      ElMessage.success(`已更新映射: ${row.sourceField} -> ${row.targetType}.${row.targetProp}`);
+    onRelationFileChange(file) {
+      this.relationImport.file = file.raw;
+      this.relationImport.source = file.name;
+      this.relationImport.fields = [];
+      this.fetchHeaders(file.raw, (headers) => {
+        this.relationImport.fields = headers;
+        // 根据列名关键词自动推断方向与关系类型，减少手工配置
+        const guess = this.guessRelationConfig(headers);
+        this.relationImport.fromField = guess.fromField;
+        this.relationImport.toField = guess.toField;
+        this.relationImport.relType = guess.relType;
+        this.relationImport.fromLabel = guess.fromLabel;
+        this.relationImport.toLabel = guess.toLabel;
+        this.relationImport.fromProp = 'name';
+        this.relationImport.toProp = 'name';
+        // 自动预填明显的属性映射（同名列）
+        const used = new Set([guess.fromField, guess.toField].filter(Boolean));
+        this.relationImport.props = headers
+          .filter(h => !used.has(h))
+          .map(h => ({ relProp: h, sourceField: h }));
+        ElMessage.success(guess.fromField
+          ? '文件已加载，已自动推断关系映射，请确认后导入'
+          : '文件已加载，无法自动判断方向，请手动选择起点/终点');
+      });
     },
-    addRelationMapping() {
-      this.structuredPreview.relationMappings.push({ fromField: '', toField: '', relType: '子公司' });
+    guessRelationConfig(headers) {
+      const fromHints = ['担保方', '保证人', '出质人', '质权人', '甲方', '来源', '父公司', '母公司', '原告', '转出', '股东', '持有方'];
+      const toHints = ['被担保', '被保证', '乙方', '目标', '子公司', '被告', '转入', '被投资', '标的'];
+      const joined = headers.join('|');
+      let fromField = headers.find(h => fromHints.some(k => h.includes(k))) || '';
+      let toField = headers.find(h => toHints.some(k => h.includes(k))) || '';
+      if (fromField === toField) toField = '';
+      let relType = '';
+      // 覆盖图谱全部 13 种关系类型的关键词推断
+      if (joined.includes('质押')) relType = 'PLEDGE';
+      else if (joined.includes('担保')) relType = 'GUARANTEES';
+      else if (joined.includes('港股')) relType = '港股证券_公司资料';
+      else if (joined.includes('b股') || joined.includes('B股')) relType = 'B股证券_公司资料';
+      else if (joined.includes('a股') || joined.includes('A股') || joined.includes('证券')) relType = 'A股证券_公司资料';
+      else if (joined.includes('子公司')) relType = '子公司';
+      else if (joined.includes('拥有') || joined.includes('持股') || joined.includes('控股')) relType = '拥有公司';
+      else if (joined.includes('供应商')) relType = '供应商';
+      else if (joined.includes('客户')) relType = '客户';
+      else if (joined.includes('诉讼') || joined.includes('仲裁')) relType = '诉讼仲裁';
+      else if (joined.includes('起诉')) relType = '起诉';
+      else if (joined.includes('违规')) relType = '违规事件';
+      else if (joined.includes('城市')) relType = '所属城市';
+      // 端点标签推断：非公司实体
+      let fromLabel = 'Company', toLabel = 'Company';
+      if (relType === '所属城市') toLabel = 'City';
+      if (toField.includes('城市')) toLabel = 'City';
+      return { fromField, toField, relType, fromLabel, toLabel };
     },
-    updateRelationMapping(row) {
-      ElMessage.success(`关系映射已更新: ${row.relType}`);
+    fetchHeaders(file, cb) {
+      if (!file) return;
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.csv')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const text = new TextDecoder('utf-8').decode(e.target.result);
+            const firstLine = text.split(/\r?\n/)[0] || '';
+            const headers = firstLine.split(',').map(h => h.trim().replace(/^"|"$/g, '')).filter(Boolean);
+            if (headers.length) cb(headers);
+          } catch (err) {
+            console.warn('解析表头失败', err);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        // Excel：通过后端表头探测接口获取
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('mappings', JSON.stringify({ entityMappings: [] }));
+        fd.append('mode', 'headers');
+        axios.post('/api/structured_import/', fd).then(res => {
+          const data = res.data || {};
+          if (data.status === 'success' && Array.isArray(data.columns) && data.columns.length) {
+            cb(data.columns);
+          }
+        }).catch(() => { ElMessage.warning('表头探测失败'); });
+      }
+    },
+    buildEntityMappings() {
+      if (!this.entityImport.file) {
+        ElMessage.warning('请先上传文件');
+        return null;
+      }
+      const entityMappings = this.entityImport.mappings
+        .filter(m => m.sourceField)
+        .map(m => ({ sourceField: m.sourceField, targetType: m.targetType, targetProp: m.targetProp }));
+      if (!entityMappings.length) {
+        ElMessage.warning('请至少保留一条有效字段映射');
+        return null;
+      }
+      return { entityMappings, relationMappings: [] };
     },
     previewImport() {
-      ElMessage.success('导入预览：将导入 1000 条记录，创建 800 个节点、1200 条关系');
+      const mappings = this.buildEntityMappings();
+      if (!mappings) return;
+      const fd = new FormData();
+      fd.append('file', this.entityImport.file);
+      fd.append('mappings', JSON.stringify(mappings));
+      fd.append('mode', 'preview');
+      this.entityImport.importing = true;
+      axios.post('/api/structured_import/', fd).then(res => {
+        const data = res.data || {};
+        if (data.status === 'success') {
+          this.importPreviewResult = data;
+          this.previewDialogVisible = true;
+        } else {
+          ElMessage.error(data.message || '预览失败');
+        }
+      }).catch(e => {
+        ElMessage.error((e.response && e.response.data && e.response.data.message) || '预览请求失败');
+      }).finally(() => { this.entityImport.importing = false; });
     },
     executeImport() {
-      this.importing = true;
-      this.importProgress = { show: true, percent: 0, status: '', processed: 0, total: 1000, success: 0, failed: 0, errors: [] };
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        this.importProgress.percent = progress;
-        this.importProgress.processed = progress * 10;
-        this.importProgress.success = progress * 9;
-        if (progress >= 100) {
-          clearInterval(interval);
-          this.importing = false;
+      const mappings = this.buildEntityMappings();
+      if (!mappings) return;
+      this.entityImport.importing = true;
+      this.importProgress = { show: true, percent: 5, status: '', processed: 0, total: 0, success: 0, failed: 0, errors: [], errorRows: [] };
+      const fd = new FormData();
+      fd.append('file', this.entityImport.file);
+      fd.append('mappings', JSON.stringify(mappings));
+      fd.append('mode', 'execute');
+      fd.append('batchSize', String(this.batchConfig.batchSize));
+      axios.post('/api/structured_import/', fd).then(res => {
+        const data = res.data || {};
+        if (data.status === 'success') {
+          this.importProgress.percent = 100;
           this.importProgress.status = 'success';
-          ElMessage.success('导入完成');
+          this.importProgress.total = data.totalRows || 0;
+          this.importProgress.processed = data.totalRows || 0;
+          this.importProgress.success = (data.nodesCreated || 0) + (data.relationsCreated || 0);
+          this.importProgress.failed = data.failedRows || 0;
+          this.importProgress.errors = (data.errors || []).map(e =>
+            `${JSON.stringify(e.row)}: ${e.error}`
+          );
+          this.importProgress.errorRows = data.errors || [];
+          ElMessage.success(`实体导入完成：创建节点 ${data.nodesCreated} 个，失败 ${data.failedRows} 行`);
+        } else {
+          this.importProgress.status = 'exception';
+          ElMessage.error(data.message || '导入失败');
         }
-      }, 200);
+      }).catch(e => {
+        this.importProgress.status = 'exception';
+        ElMessage.error((e.response && e.response.data && e.response.data.message) || '导入请求失败');
+      }).finally(() => { this.entityImport.importing = false; });
     },
-    testDbConnection() {
-      ElMessage.success('数据库连接测试成功');
+    importRelations() {
+      const ri = this.relationImport;
+      if (!ri.file) { ElMessage.warning('请先上传关系文件'); return; }
+      if (!ri.relType) { ElMessage.warning('请选择关系类型'); return; }
+      if (!ri.fromField || !ri.toField) { ElMessage.warning('请选择起点/终点的源字段'); return; }
+      const props = {};
+      ri.props.filter(p => p.relProp && p.sourceField).forEach(p => { props[p.relProp] = p.sourceField; });
+      const mapping = {
+        fromField: ri.fromField, fromLabel: ri.fromLabel, fromProp: ri.fromProp || 'name',
+        toField: ri.toField, toLabel: ri.toLabel, toProp: ri.toProp || 'name',
+        relType: ri.relType, props
+      };
+      ElMessageBox.confirm(
+        `将在「${ri.fromLabel}.${ri.fromProp}」与「${ri.toLabel}.${ri.toProp}」之间创建 ${ri.relType} 关系（不创建新节点），是否继续？`,
+        '关系导入确认',
+        { confirmButtonText: '执行导入', cancelButtonText: '取消', type: 'warning' }
+      ).then(() => {
+        ri.importing = true;
+        this.importProgress = { show: true, percent: 5, status: '', processed: 0, total: 0, success: 0, failed: 0, errors: [], errorRows: [] };
+        const fd = new FormData();
+        fd.append('file', ri.file);
+        fd.append('mappings', JSON.stringify({ relationMappings: [mapping] }));
+        fd.append('mode', 'relations');
+        axios.post('/api/structured_import/', fd).then(res => {
+          const data = res.data || {};
+          if (data.status === 'success') {
+            this.importProgress.percent = 100;
+            this.importProgress.status = 'success';
+            this.importProgress.total = data.totalRows || 0;
+            this.importProgress.processed = (data.totalRows || 0) - (data.skippedEmptyRows || 0);
+            this.importProgress.success = data.relationsCreated || 0;
+            this.importProgress.failed = data.failedRows || 0;
+            this.importProgress.errors = (data.errors || []).map(e =>
+              `${JSON.stringify(e.row)}: ${e.error}`
+            );
+            this.importProgress.errorRows = data.errors || [];
+            ElMessage.success(`关系导入完成：创建 ${data.relationsCreated} 条，失败 ${data.failedRows} 行，空端点跳过 ${data.skippedEmptyRows} 行`);
+          } else {
+            this.importProgress.status = 'exception';
+            ElMessage.error(data.message || '关系导入失败');
+          }
+        }).catch(e => {
+          this.importProgress.status = 'exception';
+          ElMessage.error((e.response && e.response.data && e.response.data.message) || '关系导入请求失败');
+        }).finally(() => { ri.importing = false; });
+      }).catch(() => {});
     },
-    loadDbSchema() {
-      ElMessage.success('表结构加载成功');
-    },
-    testApiConnection() {
-      ElMessage.success('API 接口测试成功');
-    },
-    fetchApiData() {
-      ElMessage.success('数据获取成功');
+    exportImportErrors() {
+      const rows = this.importProgress.errorRows || [];
+      if (!rows.length) return;
+      // 汇总所有失败行的列，附加错误原因列，导出 CSV
+      const cols = [...new Set(rows.flatMap(e => Object.keys(e.row || {})))];
+      const header = [...cols, '导入错误原因'];
+      const esc = (v) => {
+        const s = (v === null || v === undefined) ? '' : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lines = [header.join(',')];
+      rows.forEach(e => {
+        lines.push([...cols.map(c => esc(e.row ? e.row[c] : '')), esc(e.error)].join(','));
+      });
+      const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `导入错误明细_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
     },
     onDocFileChange(file) {
-      ElMessage.success(`文档 ${file.name} 已上传，准备抽取`);
+      this.docFile = file.raw;
+      ElMessage.success(`文档 ${file.name} 已选择，可开始抽取`);
     },
     startExtraction() {
+      if (!this.docFile) {
+        ElMessage.warning('请先上传文档');
+        return;
+      }
       this.extracting = true;
-      setTimeout(() => {
-        this.extractResults = {
-          entities: [
-            { text: '阿里巴巴', type: 'Company', confidence: 0.95 },
-            { text: '腾讯控股', type: 'Company', confidence: 0.92 },
-            { text: '马云', type: 'Person', confidence: 0.88 }
-          ],
-          relations: [
-            { subject: '阿里巴巴', predicate: '子公司', object: '蚂蚁集团', confidence: 0.85 },
-            { subject: '腾讯', predicate: '投资', object: '京东', confidence: 0.78 }
-          ],
-          lowConfidence: [{ text: '某小公司', type: 'Company', confidence: 0.45 }]
-        };
+      this.extractProgress = 0;
+      this.extractStage = '上传文档...';
+      const fd = new FormData();
+      fd.append('file', this.docFile);
+      fd.append('model', this.extractConfig.model);
+      axios.post('/api/extract_unstructured/', fd).then(startRes => {
+        const taskId = startRes.data.taskId;
+        if (!taskId) throw new Error(startRes.data.message || '任务启动失败');
+        this.extractStage = '文档已解析，等待 LLM 抽取...';
+        const poll = setInterval(() => {
+          axios.get('/api/extract_unstructured/', { params: { task_id: taskId } }).then(res => {
+            const st = res.data || {};
+            this.extractProgress = st.progress || 0;
+            this.extractStage = st.stage || '';
+            if (st.status === 'success') {
+              clearInterval(poll);
+              this.extractResults = st.result;
+              this.selectedEntities = [];
+              this.selectedRelations = [];
+              this.extracting = false;
+              ElMessage.success(`抽取完成：实体 ${st.result.entities.length} 个，关系 ${st.result.relations.length} 个，请到"抽取结果审核"确认`);
+            } else if (st.status === 'error') {
+              clearInterval(poll);
+              this.extracting = false;
+              ElMessage.error(st.stage || '抽取失败');
+            }
+          }).catch(() => {});
+        }, 3000);
+      }).catch(e => {
         this.extracting = false;
-        ElMessage.success('抽取完成');
-      }, 2000);
+        ElMessage.error('抽取任务启动失败: ' + (e.response?.data?.message || e.message));
+      });
     },
     onEntitySelectionChange(selection) {
       this.selectedEntities = selection;
@@ -2708,34 +2901,112 @@ export default {
     editExtractedEntity(row) {
       ElMessage.info(`编辑实体: ${row.text}`);
     },
-    confirmSelected() {
-      ElMessage.success(`已确认 ${this.selectedEntities.length} 个实体, ${this.selectedRelations.length} 个关系`);
+    // 将审核通过的抽取结果写回图谱：实体按标签分组建点，关系按类型分组匹配端点
+    async writeBack(entities, relations) {
+      // 与后端 EXTRACT_NAME_PROP 保持一致：各标签节点名的对齐属性键
+      const NAME_PROPS = {
+        Company: '公司中文名称', City: '城市',
+        A_security: '证券简称', G_security: '证券简称', B_security: '证券简称'
+      };
+      // 关系类型 -> [起点标签, 终点标签]（诉讼仲裁/违规事件端点无名称键，暂不支持自动回写）
+      const REL_ENDPOINTS = {
+        '子公司': ['Company', 'Company'], '客户': ['Company', 'Company'],
+        '供应商': ['Company', 'Company'], 'GUARANTEES': ['Company', 'Company'],
+        '起诉': ['Company', 'Company'], 'PLEDGE': ['Company', 'Company'],
+        '所属城市': ['Company', 'City'], '拥有公司': ['City', 'Company']
+      };
+      const postImport = (mode, records, mappings) => {
+        const fd = new FormData();
+        fd.append('mode', mode);
+        fd.append('records', JSON.stringify(records));
+        fd.append('mappings', JSON.stringify(mappings));
+        fd.append('batchSize', '500');
+        return axios.post('/api/structured_import/', fd);
+      };
+
+      let okEntities = 0, okRelations = 0;
+      const errs = [];
+      // 实体：按标签分组（Litigation/Violation 无名称键，仅提示）
+      const byType = {};
+      let skippedEntities = 0;
+      entities.forEach(e => {
+        if (!NAME_PROPS[e.type]) { skippedEntities++; return; }
+        (byType[e.type] = byType[e.type] || []).push(e);
+      });
+      for (const [label, list] of Object.entries(byType)) {
+        const records = list.map(e => ({ [NAME_PROPS[label]]: e.text, ...(e.props || {}) }));
+        const cols = [...new Set(records.flatMap(r => Object.keys(r)))];
+        const mappings = { entityMappings: cols.map(c => ({ sourceField: c, targetType: label, targetProp: c })), relationMappings: [] };
+        try {
+          await postImport('execute', records, mappings);
+          okEntities += records.length;
+        } catch (e) {
+          errs.push(`${label} 实体写入失败: ${e.response?.data?.message || e.message}`);
+        }
+      }
+      // 关系：按类型分组（CREATE 语义，端点精确匹配已有节点）
+      const supported = relations.filter(r => REL_ENDPOINTS[r.predicate]);
+      const skippedRelations = relations.length - supported.length;
+      const byRel = {};
+      supported.forEach(r => (byRel[r.predicate] = byRel[r.predicate] || []).push(r));
+      for (const [type, list] of Object.entries(byRel)) {
+        const [fromLabel, toLabel] = REL_ENDPOINTS[type];
+        const records = list.map(r => ({ from: r.subject, to: r.object }));
+        const propKeys = [...new Set(list.flatMap(r => Object.keys(r.props || {})))];
+        const mappings = {
+          entityMappings: [],
+          relationMappings: [{
+            fromField: 'from', fromLabel, fromProp: NAME_PROPS[fromLabel],
+            toField: 'to', toLabel, toProp: NAME_PROPS[toLabel],
+            relType: type,
+            props: Object.fromEntries(propKeys.map(k => [k, k]))
+          }]
+        };
+        try {
+          await postImport('relations', records, mappings);
+          okRelations += records.length;
+        } catch (e) {
+          errs.push(`${type} 关系写入失败: ${e.response?.data?.message || e.message}`);
+        }
+      }
+      return { okEntities, okRelations, skippedEntities, skippedRelations, errs };
+    },
+    removeConfirmed(entities, relations) {
+      if (this.extractResults) {
+        this.extractResults.entities = this.extractResults.entities.filter(e => !entities.includes(e));
+        this.extractResults.relations = this.extractResults.relations.filter(r => !relations.includes(r));
+      }
+      this.selectedEntities = [];
+      this.selectedRelations = [];
+    },
+    async confirmSelected() {
+      if (!this.selectedEntities.length && !this.selectedRelations.length) {
+        ElMessage.warning('请先勾选要确认的实体或关系');
+        return;
+      }
+      const r = await this.writeBack(this.selectedEntities, this.selectedRelations);
+      this.removeConfirmed(this.selectedEntities, this.selectedRelations);
+      let msg = `已写入实体 ${r.okEntities} 个、关系 ${r.okRelations} 条`;
+      if (r.skippedEntities || r.skippedRelations) msg += `（跳过暂不支持自动回写的案件/违规项 ${r.skippedEntities + r.skippedRelations} 个）`;
+      if (r.errs.length) { ElMessage.error(msg + '；部分失败: ' + r.errs[0]); } else { ElMessage.success(msg); }
     },
     rejectSelected() {
-      ElMessage.warning('已拒绝选中项');
+      this.removeConfirmed(this.selectedEntities, this.selectedRelations);
+      ElMessage.warning('已拒绝选中项（未写入图谱）');
     },
-    confirmAll() {
-      ElMessage.success('已全部确认');
-    },
-    startBatchBuild() {
-      this.batchBuilding = true;
-      setTimeout(() => {
-        this.batchResult = {
-          startTime: new Date().toLocaleString('zh-CN'),
-          endTime: new Date(Date.now() + 120000).toLocaleString('zh-CN'),
-          duration: 120,
-          updateMode: this.batchConfig.updateMode,
-          newNodes: 50000,
-          newRelations: 80000,
-          updatedNodes: 5000,
-          skippedNodes: 2000,
-          impact: this.batchConfig.updateMode === 'append' ? 'low' : this.batchConfig.updateMode === 'replace' ? 'high' : 'medium',
-          impactTitle: this.batchConfig.updateMode === 'append' ? '低风险操作' : this.batchConfig.updateMode === 'replace' ? '高风险操作' : '中等风险操作',
-          impactDesc: this.batchModeDescriptions[this.batchConfig.updateMode]
-        };
-        this.batchBuilding = false;
-        ElMessage.success('批量构建完成');
-      }, 2000);
+    async confirmAll() {
+      if (!this.extractResults) return;
+      const entities = [...this.extractResults.entities];
+      const relations = [...this.extractResults.relations];
+      if (!entities.length && !relations.length) {
+        ElMessage.warning('没有可确认的结果');
+        return;
+      }
+      const r = await this.writeBack(entities, relations);
+      this.removeConfirmed(entities, relations);
+      let msg = `全部确认完成：写入实体 ${r.okEntities} 个、关系 ${r.okRelations} 条`;
+      if (r.skippedEntities || r.skippedRelations) msg += `（跳过案件/违规项 ${r.skippedEntities + r.skippedRelations} 个）`;
+      if (r.errs.length) { ElMessage.error(msg + '；部分失败: ' + r.errs[0]); } else { ElMessage.success(msg); }
     }
   }
 };
@@ -3120,9 +3391,11 @@ export default {
 .perf-label { font-size: 13px; color: #909399; margin-top: 4px; }
 
 /* === Tab ⑧: 数据导入与抽取 === */
-.mode-desc { font-size: 12px; color: #909399; margin-top: 4px; }
 .error-log { max-height: 200px; overflow: auto; background: #f5f7fa; padding: 8px; font-size: 12px; color: #f56c6c; }
+.cypher-preview pre {
+  background: #f5f7fa; padding: 8px 12px; border-radius: 4px;
+  font-size: 12px; color: #476582; overflow: auto; margin: 0 0 8px;
+}
 .review-stats { display: flex; gap: 8px; margin-bottom: 12px; }
 .review-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-.batch-result { padding: 12px; background: #f5f7fa; border-radius: 6px; }
 </style>

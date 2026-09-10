@@ -50,20 +50,19 @@
           <el-menu-item index="7" @click="showComponent('KnowledgeGraphTestImport')">
             <el-icon><upload /></el-icon>数据导入与抽取
           </el-menu-item>
-          <!-- 证据决策功能已隐藏
-          <el-sub-menu index="6">
-            <template #title>
-              <el-icon><circle-check /></el-icon>证据决策
-            </template>
-              <el-menu-item index="6-1" @click="showComponent('EvidenceEnhancedDecision')">证据增强决策</el-menu-item>
-          </el-sub-menu>
-          -->
+          <el-menu-item index="8" @click="showComponent('EvidenceEnhancedDecision')">
+            <el-icon><circle-check /></el-icon>证据增强决策
+          </el-menu-item>
+          <el-menu-item index="9" @click="showComponent('MetaKnowledge')">
+            <el-icon><document /></el-icon>元知识
+          </el-menu-item>
         </el-menu>
       </el-scrollbar>
     </el-aside>
 
     <el-container>
       <el-header style="text-align: right; font-size: 12px">
+        <div class="header-title">金融风险元知识认知知识图谱2.0</div>
         <div class="toolbar">
           <el-dropdown>
             <el-icon style="margin-right: 8px; margin-top: 1px">
@@ -88,6 +87,7 @@
   </el-container>
 </template>
 <script>
+// import { h } from 'vue';
 import AddNode from './AddNode.vue';
 import AddNode_excel from './AddNode_excel.vue';
 import QueryNode from './QueryNode.vue';
@@ -103,7 +103,7 @@ import subgraph from './SubGraph.vue';
 import Formula from './formula.vue'
 import CrossDocEntityExtract from './CrossDocEntityExtract.vue'
 import KnowledgeGraphTest from './KnowledgeGraphTest.vue'
-// import EvidenceEnhancedDecision from './EvidenceEnhancedDecision.vue'
+import EvidenceEnhancedDecision from './EvidenceEnhancedDecision.vue'
 
 // 创建带初始 tab 的 KnowledgeGraphTest 包装组件
 const KnowledgeGraphTestStats = {
@@ -126,6 +126,10 @@ const KnowledgeGraphTestImport = {
   extends: KnowledgeGraphTest,
   props: { initialTab: { type: String, default: 'import-extract' } }
 };
+
+// 元知识库页面
+import MetaKnowledgeLibrary from './MetaKnowledgeLibrary.vue';
+const MetaKnowledge = MetaKnowledgeLibrary;
 
 export default {
   data() {
@@ -157,8 +161,9 @@ export default {
     KnowledgeGraphTestStats,
     KnowledgeGraphTestRisk,
     KnowledgeGraphTestBrowse,
-    KnowledgeGraphTestImport
-    // EvidenceEnhancedDecision
+    KnowledgeGraphTestImport,
+    EvidenceEnhancedDecision,
+    MetaKnowledge
   },
 };
 </script>
@@ -167,6 +172,13 @@ export default {
   position: relative;
   background-color: var(--el-color-primary-light-7);
   color: var(--el-text-color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.layout-container-demo .header-title {
+  font-size: 18px;
+  font-weight: 600;
 }
 .layout-container-demo .el-aside {
   color: var(--el-text-color-primary);
@@ -174,6 +186,8 @@ export default {
 }
 .layout-container-demo .el-menu {
   border-right: none;
+  /* 子级菜单每层相对上一级缩进三格 */
+  --el-menu-level-padding: 3em;
 }
 .layout-container-demo .el-main {
   padding: 0;

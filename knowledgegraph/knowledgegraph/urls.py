@@ -32,8 +32,12 @@ from .views import (
     RelationDistributionView,
     RelatedCompanyNetworkView,
     RiskCaseDataView,
+    MetaKnowledgeLibraryView,
     RelationTestCasesView,
-    TestRelationQueryView
+    TestRelationQueryView,
+    StructuredImportView,
+    GraphSchemaView,
+    UnstructuredExtractView
 )
 from rest_framework.routers import DefaultRouter
 
@@ -71,7 +75,15 @@ urlpatterns = [
     path('risk_case_data/', RiskCaseDataView.as_view(), name='risk_case_data'),
     path('relation_test_cases/', RelationTestCasesView.as_view(), name='relation_test_cases'),
     path('test_relation_query/', TestRelationQueryView.as_view(), name='test_relation_query'),
+    # 结构化数据导入API（CSV/Excel，基于字段映射的 CREATE 语句导入）
+    path('structured_import/', StructuredImportView.as_view(), name='structured_import'),
+    # 图谱Schema（节点标签/关系类型列表）
+    path('graph_schema/', GraphSchemaView.as_view(), name='graph_schema'),
+    # 半/非结构化文档抽取API（本地 Ollama LLM，按图谱本体抽取实体/关系）
+    path('extract_unstructured/', UnstructuredExtractView.as_view(), name='extract_unstructured'),
     # path('meta/create_meta_knowledge/', views.MetaKnowledgeViewSet.as_view({'post': 'create_meta_knowledge'}), name='create_meta_knowledge'),
+    # 元知识库页面（总览统计 + 条目浏览）
+    path('metaknowledge_library/', MetaKnowledgeLibraryView.as_view(), name='metaknowledge_library'),
 ] + router.urls
 
 

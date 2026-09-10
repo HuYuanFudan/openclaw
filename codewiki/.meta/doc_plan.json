@@ -1,0 +1,351 @@
+{
+  "repo": "openclaw",
+  "languages": [
+    "JavaScript/TypeScript",
+    "Python"
+  ],
+  "entrypoints": [
+    ".claude/worktrees/wf_c017c765-e7f-1/front/src/router/index.js",
+    ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/companynameparser/__main__.py",
+    "front/src/router/index.js",
+    "knowledgegraph/knowledgegraph/companynameparser/__main__.py"
+  ],
+  "commands": [],
+  "top_dirs": [
+    ".claude",
+    "front",
+    "knowledgegraph",
+    "lsydata",
+    "\u540e\u7aef\u5f00\u53d1"
+  ],
+  "tech_stack": [
+    "JavaScript/TypeScript",
+    "Python"
+  ],
+  "symbol_count": 0,
+  "module_scores": {
+    "ui-app": {
+      "score": 40,
+      "threshold": 60,
+      "candidate_threshold": 40,
+      "status": "candidate",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "path_glob",
+          "pattern": "**/src/App.*",
+          "weight": 20,
+          "matches": [
+            "front/src/App.vue",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/src/App.vue"
+          ]
+        },
+        {
+          "type": "content_regex",
+          "pattern": "reactdom|createapp|createRoot",
+          "weight": 20,
+          "matches": [
+            ".claude/worktrees/wf_c017c765-e7f-1/front/src/main.js",
+            "front/src/main.js"
+          ]
+        }
+      ]
+    },
+    "api": {
+      "score": 0,
+      "threshold": 60,
+      "candidate_threshold": 40,
+      "status": "excluded",
+      "confidence": "low",
+      "evidence": []
+    },
+    "plugins": {
+      "score": 50,
+      "threshold": 60,
+      "candidate_threshold": 40,
+      "status": "candidate",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "path_glob",
+          "pattern": "**/plugins/**",
+          "weight": 30,
+          "matches": [
+            ".claude/worktrees/wf_c017c765-e7f-1/front/src/plugins",
+            "front/src/plugins"
+          ]
+        },
+        {
+          "type": "content_regex",
+          "pattern": "plugin|extension point|hook",
+          "weight": 20,
+          "matches": [
+            ".claude/worktrees/wf_c017c765-e7f-1/front/.eslintrc.js",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/package.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/package-lock.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/babel.config.js",
+            "front/.eslintrc.js",
+            "front/package.json",
+            "front/package-lock.json",
+            "front/babel.config.js"
+          ]
+        }
+      ]
+    },
+    "build-and-release": {
+      "score": 0,
+      "threshold": 50,
+      "candidate_threshold": 30,
+      "status": "excluded",
+      "confidence": "low",
+      "evidence": []
+    },
+    "data": {
+      "score": 30,
+      "threshold": 60,
+      "candidate_threshold": 40,
+      "status": "excluded",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "path_glob",
+          "pattern": "**/migrations/**",
+          "weight": 30,
+          "matches": [
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/migrations",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/migrations/__pycache__",
+            "knowledgegraph/knowledgegraph/migrations",
+            "knowledgegraph/knowledgegraph/migrations/__pycache__"
+          ]
+        }
+      ]
+    },
+    "security": {
+      "score": 30,
+      "threshold": 60,
+      "candidate_threshold": 40,
+      "status": "excluded",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "content_regex",
+          "pattern": "jwt|oauth|rbac|authz|openid",
+          "weight": 30,
+          "matches": [
+            "\u4ee3\u7801\u62a5\u544a.md",
+            "kg_data_report.json",
+            "README.md",
+            ".claude/worktrees/wf_c017c765-e7f-1/README.md",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/package-lock.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/src/main.js",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/\u4ed3\u5e93\u8be6\u7ec6\u5206\u6790\u62a5\u544a.md",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/settings.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/views.py",
+            "front/package-lock.json"
+          ]
+        }
+      ]
+    },
+    "observability": {
+      "score": 50,
+      "threshold": 60,
+      "candidate_threshold": 40,
+      "status": "candidate",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "content_regex",
+          "pattern": "opentelemetry|otel|tracing|metrics|prometheus",
+          "weight": 30,
+          "matches": [
+            "kg_data_report.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/companynameparser/namematcher.py",
+            "front/src/data/kg_report.js",
+            "knowledgegraph/knowledgegraph/companynameparser/namematcher.py"
+          ]
+        },
+        {
+          "type": "content_regex",
+          "pattern": "logger|logrus|zap|slog",
+          "weight": 20,
+          "matches": [
+            "kg_data_report.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/package-lock.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/public/cross_doc_dataset_kg_mapped.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/public/cross_doc_dataset.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/src/router/index.js",
+            ".claude/worktrees/wf_c017c765-e7f-1/lsydata/data/financedata/\u5b8c\u6574_\u5df2\u77e5\u5b9e\u4f53\u5339\u914d_\u5173\u7cfb\u9884\u6d4b\u7ed3\u679c1/\u5b9e\u4f53\u5173\u7cfb\u6570\u636e.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/settings.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/permissions.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/companynameparser/parseror.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/companynameparser/logger.py"
+          ]
+        }
+      ]
+    },
+    "performance": {
+      "score": 25,
+      "threshold": 50,
+      "candidate_threshold": 30,
+      "status": "excluded",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "content_regex",
+          "pattern": "benchmark|profiling|perf|latency",
+          "weight": 25,
+          "matches": [
+            "kg_data_report.json",
+            "front/src/data/kg_report.js"
+          ]
+        }
+      ]
+    },
+    "integrations": {
+      "score": 0,
+      "threshold": 50,
+      "candidate_threshold": 30,
+      "status": "excluded",
+      "confidence": "low",
+      "evidence": []
+    },
+    "troubleshooting": {
+      "score": 20,
+      "threshold": 40,
+      "candidate_threshold": 20,
+      "status": "candidate",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "content_regex",
+          "pattern": "error code|panic|exception",
+          "weight": 20,
+          "matches": [
+            "scan_risk_cases_for_ui.py",
+            "kg_data_report.json",
+            "scan_kg_data.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/test_extractor.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/package-lock.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/lsydata/data/financedata/laguanxi.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/test_relation_extractor.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/relation_extractor.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/knowledgegraph/views.py",
+            "front/package-lock.json"
+          ]
+        }
+      ]
+    },
+    "glossary": {
+      "score": 15,
+      "threshold": 30,
+      "candidate_threshold": 10,
+      "status": "candidate",
+      "confidence": "low",
+      "evidence": [
+        {
+          "type": "content_regex",
+          "pattern": "domain model|entity|aggregate",
+          "weight": 15,
+          "matches": [
+            "\u4ee3\u7801\u62a5\u544a.md",
+            "kg_data_report.json",
+            "README.md",
+            "\u524d\u7aef\u529f\u80fd\u5f00\u53d1\u6587\u6863_20250423.md",
+            ".claude/worktrees/wf_c017c765-e7f-1/\u524d\u7aef\u529f\u80fd\u5f00\u53d1\u6587\u6863_20250423.md",
+            ".claude/worktrees/wf_c017c765-e7f-1/front/src/router/index.js",
+            ".claude/worktrees/wf_c017c765-e7f-1/lsydata/data/financedata/laguanxi.py",
+            ".claude/worktrees/wf_c017c765-e7f-1/lsydata/data/financedata/\u5b8c\u6574_\u5df2\u77e5\u5b9e\u4f53\u5339\u914d_\u5173\u7cfb\u9884\u6d4b\u7ed3\u679c1/\u5b9e\u4f53\u5173\u7cfb\u6570\u636e.json",
+            ".claude/worktrees/wf_c017c765-e7f-1/knowledgegraph/cosmic-vortex-babbage.md",
+            "front/src/data/kg_report.js"
+          ]
+        }
+      ]
+    }
+  },
+  "pages": [
+    {
+      "path": "overview.md",
+      "title": "Overview",
+      "template": "overview",
+      "status": "required",
+      "module": "core"
+    },
+    {
+      "path": "getting-started/quickstart.md",
+      "title": "Quickstart",
+      "template": "quickstart",
+      "status": "required",
+      "module": "core"
+    },
+    {
+      "path": "architecture/overview.md",
+      "title": "Architecture Overview",
+      "template": "architecture",
+      "status": "required",
+      "module": "core"
+    },
+    {
+      "path": "core-components/overview.md",
+      "title": "Core Components Overview",
+      "template": "components",
+      "status": "required",
+      "module": "core"
+    },
+    {
+      "path": "development/overview.md",
+      "title": "Development Overview",
+      "template": "development",
+      "status": "required",
+      "module": "core"
+    },
+    {
+      "path": "application-lifecycle/bootstrap.md",
+      "title": "Application Bootstrap",
+      "template": "bootstrap",
+      "status": "candidate",
+      "module": "ui-app"
+    },
+    {
+      "path": "user-inference/ux-model.md",
+      "title": "UX Model",
+      "template": "ux",
+      "status": "candidate",
+      "module": "ui-app"
+    },
+    {
+      "path": "plugins/overview.md",
+      "title": "Plugins Overview",
+      "template": "plugins",
+      "status": "candidate",
+      "module": "plugins"
+    },
+    {
+      "path": "observability/logging-metrics-tracing.md",
+      "title": "Observability",
+      "template": "observability",
+      "status": "candidate",
+      "module": "observability"
+    },
+    {
+      "path": "observability/runbook.md",
+      "title": "Runbook",
+      "template": "runbook",
+      "status": "candidate",
+      "module": "observability"
+    },
+    {
+      "path": "troubleshooting/common-issues.md",
+      "title": "Common Issues",
+      "template": "troubleshooting",
+      "status": "candidate",
+      "module": "troubleshooting"
+    },
+    {
+      "path": "glossary.md",
+      "title": "Glossary",
+      "template": "glossary",
+      "status": "candidate",
+      "module": "glossary"
+    }
+  ]
+}

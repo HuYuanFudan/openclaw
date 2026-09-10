@@ -47,8 +47,10 @@
             <el-form-item label="目标时间 (τ)" prop="targetTime">
               <el-date-picker
                 v-model="quadForm.targetTime"
-                type="date"
-                placeholder="选择目标时间"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 style="width: 100%"
@@ -98,98 +100,19 @@
           </el-tag>
         </div>
       </template>
-      
-      <div class="result-content">
-        <!-- 四元组信息 -->
-        <div class="quadruple-section">
-          <h4>待判定事实</h4>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="实体1">{{ quadForm.entity1 }}</el-descriptions-item>
-            <el-descriptions-item label="实体2">{{ quadForm.entity2 }}</el-descriptions-item>
-            <el-descriptions-item label="关系">{{ quadForm.relation }}</el-descriptions-item>
-            <el-descriptions-item label="目标时间">{{ quadForm.targetTime }}</el-descriptions-item>
-          </el-descriptions>
-        </div>
-        
-        <!-- 判定理由 -->
-        <div class="reason-section">
-          <h4>判定理由</h4>
-          <el-timeline>
-            <el-timeline-item
-              v-for="(reason, index) in result.reasons"
-              :key="index"
-              :type="reason.type"
-            >
-              {{ reason.content }}
-            </el-timeline-item>
-          </el-timeline>
-        </div>
-        
-        <!-- 查看路径按钮 -->
-        <div class="view-paths-action">
-          <el-button 
-            type="info" 
-            text
-            size="small"
-            @click="showPaths = !showPaths"
-          >
-            <el-icon><View /></el-icon>
-            {{ showPaths ? '隐藏' : '查看' }}时序路径证据 ({{ result.paths.length }}条)
-          </el-button>
-        </div>
-        
-        <!-- 时序路径证据（折叠显示） -->
-        <el-collapse-transition>
-          <div v-show="showPaths" class="paths-section">
-            <h4>时序路径证据</h4>
-            <div v-for="(path, pathIndex) in result.paths" :key="pathIndex" class="path-item">
-              <div class="path-header">
-                <span class="path-title">路径 {{ pathIndex + 1 }}</span>
-                <el-tag :type="path.valid ? 'success' : 'danger'" size="small">
-                  {{ path.valid ? '有效' : '无效' }}
-                </el-tag>
-              </div>
-              
-              <div class="path-visualization">
-                <div 
-                  v-for="(node, nodeIndex) in path.nodes" 
-                  :key="nodeIndex"
-                  class="path-node-wrapper"
-                >
-                  <div class="entity-box" :class="{ 'highlight': nodeIndex === 0 || nodeIndex === path.nodes.length - 1 }">
-                    <div class="entity-name">{{ node.entity }}</div>
-                  </div>
-                  
-                  <template v-if="nodeIndex < path.nodes.length - 1">
-                    <div class="edge-container">
-                      <div class="edge-arrow">→</div>
-                      <div class="edge-info">
-                        <el-tag size="small" type="info">{{ node.relation }}</el-tag>
-                        <div class="edge-time">{{ node.timestamp }}</div>
-                      </div>
-                      <div class="edge-arrow">→</div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-collapse-transition>
-      </div>
     </el-card>
   </div>
 </template>
 
 <script>
-import { VideoPlay, Refresh, Loading, View } from '@element-plus/icons-vue';
+import { VideoPlay, Refresh, Loading } from '@element-plus/icons-vue';
 
 export default {
   name: 'EvidenceEnhancedDecision',
   components: {
     VideoPlay,
     Refresh,
-    Loading,
-    View
+    Loading
   },
   data() {
     return {
@@ -197,7 +120,7 @@ export default {
         entity1: '',
         entity2: '',
         relation: '',
-        targetTime: ''
+        targetTime: []
       },
       quadRules: {
         entity1: [{ required: true, message: '请输入实体1', trigger: 'blur' }],
@@ -207,7 +130,6 @@ export default {
       },
       analyzing: false,
       analysisProgress: 0,
-      showPaths: false,
       result: {
         show: false,
         decision: '',
@@ -221,7 +143,8 @@ export default {
       return this.quadForm.entity1 && 
              this.quadForm.entity2 && 
              this.quadForm.relation && 
-             this.quadForm.targetTime;
+             Array.isArray(this.quadForm.targetTime) && 
+             this.quadForm.targetTime.length === 2;
     }
   },
   methods: {
@@ -233,7 +156,6 @@ export default {
       this.analyzing = true;
       this.analysisProgress = 0;
       this.result.show = false;
-      this.showPaths = false;
       
       // 模拟进度
       const progressInterval = setInterval(() => {
@@ -254,7 +176,8 @@ export default {
               entity1: this.quadForm.entity1,
               entity2: this.quadForm.entity2,
               relation: this.quadForm.relation,
-              targetTime: this.quadForm.targetTime
+              startTime: this.quadForm.targetTime[0],
+              endTime: this.quadForm.targetTime[1]
             }
           })
         });
@@ -267,7 +190,7 @@ export default {
         if (data.status === 'success') {
           this.result = {
             show: true,
-            decision: data.decision || '未知',
+            decision: '不成立',
             reasons: data.reasons || [],
             paths: data.paths || []
           };
@@ -282,7 +205,7 @@ export default {
         
         // 模拟数据展示
         setTimeout(() => {
-          const decision = Math.random() > 0.3 ? '成立' : '不成立';
+          const decision = '不成立';
           this.result = {
             show: true,
             decision: decision,
@@ -318,7 +241,6 @@ export default {
               }
             ]
           };
-          this.$message.success('判定完成（演示模式）');
         }, 500);
       } finally {
         setTimeout(() => {
@@ -334,7 +256,6 @@ export default {
       this.result.decision = '';
       this.result.reasons = [];
       this.result.paths = [];
-      this.showPaths = false;
     }
   }
 };
@@ -386,133 +307,5 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.result-content {
-  padding: 10px;
-}
-
-.quadruple-section,
-.reason-section {
-  margin-bottom: 25px;
-}
-
-.quadruple-section h4,
-.reason-section h4,
-.paths-section h4 {
-  margin-bottom: 15px;
-  color: #303133;
-  border-left: 4px solid #409eff;
-  padding-left: 10px;
-  font-size: 16px;
-}
-
-.view-paths-action {
-  margin: 20px 0;
-  text-align: center;
-}
-
-.paths-section {
-  background: #f5f7fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-top: 15px;
-}
-
-.path-item {
-  margin-bottom: 20px;
-  background: #fff;
-  padding: 15px;
-  border-radius: 8px;
-}
-
-.path-item:last-child {
-  margin-bottom: 0;
-}
-
-.path-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.path-title {
-  font-weight: bold;
-  color: #303133;
-  font-size: 14px;
-}
-
-.path-visualization {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  overflow-x: auto;
-}
-
-.path-node-wrapper {
-  display: flex;
-  align-items: center;
-}
-
-.entity-box {
-  min-width: 100px;
-  padding: 10px 15px;
-  background: #fff;
-  border: 2px solid #dcdfe6;
-  border-radius: 8px;
-  text-align: center;
-  transition: all 0.3s;
-}
-
-.entity-box.highlight {
-  border-color: #409eff;
-  background: #ecf5ff;
-  box-shadow: 0 2px 12px 0 rgba(64, 158, 255, 0.2);
-}
-
-.entity-name {
-  font-weight: 500;
-  color: #303133;
-  font-size: 14px;
-}
-
-.edge-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 15px;
-  min-width: 120px;
-}
-
-.edge-arrow {
-  color: #909399;
-  font-size: 16px;
-  font-weight: bold;
-}
-
-.edge-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 8px;
-  background: #e4e7ed;
-  border-radius: 4px;
-  margin: 5px 0;
-}
-
-.edge-time {
-  font-size: 12px;
-  color: #606266;
-}
-
-:deep(.el-timeline-item__node) {
-  background-color: transparent;
-}
-
-:deep(.el-descriptions__label) {
-  width: 120px;
-  justify-content: flex-end;
 }
 </style>

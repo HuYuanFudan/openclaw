@@ -1,6 +1,9 @@
 from py2neo import Graph, NodeMatcher, Node, Relationship, RelationshipMatcher
 from django.http import JsonResponse, HttpResponse, FileResponse
 import json
+import os
+import threading
+import time
 import pandas as pd
 from io import BytesIO
 import io
@@ -44,6 +47,50 @@ matcher = NodeMatcher(graph)
 # graph = Graph("neo4j://localhost:7687", auth=("neo4j", "1598273166wsy."))
 matcher = NodeMatcher(graph)
 rmatcher = RelationshipMatcher(graph)
+
+# ============================================================
+# 本地元知识数据：新一批元知识暂不导入图谱，直接从 jsonl 文件读取，
+# 与图谱中的 MetaKnowledge 节点一起支撑"图谱金融风险知识"页面。
+# ============================================================
+LOCAL_META_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'metaknowledge', 'metaknowledge.jsonl'
+)
+
+_local_meta_cache = {'mtime': None, 'data': []}
+
+def get_local_metaknowledge():
+    """读取本地 metaknowledge.jsonl 全部元知识（按文件修改时间缓存）"""
+    try:
+        if not os.path.exists(LOCAL_META_PATH):
+            return []
+        mtime = os.path.getmtime(LOCAL_META_PATH)
+        if _local_meta_cache['mtime'] != mtime:
+            items = []
+            with open(LOCAL_META_PATH, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        items.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+            _local_meta_cache['mtime'] = mtime
+            _local_meta_cache['data'] = items
+        return _local_meta_cache['data']
+    except Exception as e:
+        print(f"读取本地元知识失败: {e}")
+        return []
+
+def match_local_metaknowledge(keywords):
+    """返回"核心结论"命中任一关键词的本地元知识列表"""
+    if not keywords:
+        return get_local_metaknowledge()
+    return [
+        m for m in get_local_metaknowledge()
+        if any(kw in (m.get('核心结论') or '') for kw in keywords)
+    ]
 
 chinese_to_english = {
     "公司中文名称": "company_name",
@@ -398,7 +445,12 @@ class AddNodeView(APIView):
         try:
             data = json.loads(request.body)
             credit_number = data["credit_number"]
-            node = matcher.match("Company").where(f"_.社会信用代码= '{credit_number}'").first()
+            # 使用参数化查询替代字符串拼接，提升性能并防止注入
+            result = graph.run(
+                "MATCH (c:Company) WHERE c.`社会信用代码`=$code RETURN c LIMIT 1",
+                code=credit_number
+            ).data()
+            node = result[0]['c'] if result else None
             if not node:
                 create_company(data)
                 return JsonResponse({'status': 'success', 'message': 'Node added'})
@@ -416,7 +468,12 @@ def add_node(request):
         print(request.user.user_type)
         data = json.loads(request.body)
         credit_number = data["credit_number"]
-        node = matcher.match("Company").where(f"_.社会信用代码= '{ credit_number }'").first()
+        # 使用参数化查询替代字符串拼接，提升性能并防止注入
+        result = graph.run(
+            "MATCH (c:Company) WHERE c.`社会信用代码`=$code RETURN c LIMIT 1",
+            code=credit_number
+        ).data()
+        node = result[0]['c'] if result else None
         if not node:
             create_company(data)
         else:
@@ -435,7 +492,12 @@ class DeleteNodeView(APIView):
                     {'status': 'error', 'message': 'Missing credit_number'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            node = matcher.match("Company").where(f"_.社会信用代码 = '{credit_number}'").first()
+            # 使用参数化查询替代字符串拼接，提升性能并防止注入
+            result = graph.run(
+                "MATCH (c:Company) WHERE c.`社会信用代码`=$code RETURN c LIMIT 1",
+                code=credit_number
+            ).data()
+            node = result[0]['c'] if result else None
             if node:
                 graph.delete(node)
                 return Response(
@@ -469,7 +531,12 @@ class AddNodeExcelView(APIView):
                 existing_nodes = []
                 for index, row in df_unique.iterrows():
                     company_name = row['公司中文名称']
-                    node = matcher.match("Company").where(f"_.公司中文名称='{company_name}'").first()
+                    # 使用参数化查询替代字符串拼接，提升性能并防止注入
+                    result = graph.run(
+                        "MATCH (c:Company) WHERE c.`公司中文名称`=$name RETURN c LIMIT 1",
+                        name=company_name
+                    ).data()
+                    node = result[0]['c'] if result else None
                     if not node:
                         company_node = Node("Company", **row.to_dict())
                         graph.create(company_node)
@@ -512,8 +579,17 @@ class AddRelationshipExcelView(APIView):
                 relationship_properties = {
                     col: row[col] for col in columns[2:]
                 }
-                node1 = matcher.match("Company").where(f"_.公司中文名称= '{company1}'").first()
-                node2 = matcher.match("Company").where(f"_.公司中文名称= '{company2}'").first()
+                # 使用参数化查询替代字符串拼接，提升性能并防止注入
+                result1 = graph.run(
+                    "MATCH (c:Company) WHERE c.`公司中文名称`=$name RETURN c LIMIT 1",
+                    name=company1
+                ).data()
+                node1 = result1[0]['c'] if result1 else None
+                result2 = graph.run(
+                    "MATCH (c:Company) WHERE c.`公司中文名称`=$name RETURN c LIMIT 1",
+                    name=company2
+                ).data()
+                node2 = result2[0]['c'] if result2 else None
                 if node2 and node1:
                     if not QueryRelationship_byname(company1, company2, relationship_name):
                         relationship = Relationship(node1, relationship_name, node2, **relationship_properties)
@@ -636,8 +712,16 @@ def query_node_excel(request):
             df = pd.read_excel(excel_file, keep_default_na=False)
             if df.columns[0] != "公司中文名称":
                 return JsonResponse({'status': 'error', 'message': 'Invalid file format'}, status=400)
+            # 使用参数化查询替代字符串拼接，提升性能并防止注入
+            def check_company_exists(company_name):
+                result = graph.run(
+                    "MATCH (c:Company) WHERE c.`公司中文名称`=$name RETURN c LIMIT 1",
+                    name=company_name
+                ).data()
+                return "是" if result else "否"
+            
             df["公司是否在知识图谱中"] = [
-                "是" if matcher.match("Company").where(f"_.公司中文名称= '{company}'").first() else "否"
+                check_company_exists(company)
                 for company in df["公司中文名称"]
             ]
             output = io.BytesIO()
@@ -1421,15 +1505,55 @@ class RiskCaseDataView(APIView):
 
             def count_metaknowledge(keywords):
                 """
-                统计 core_conclusion 命中任一关键词的 MetaKnowledge 节点数。
-                用于把"风险知识"按子类精确计数，避免所有子类都返回 MetaKnowledge 总数。
+                统计元知识条数 = 图谱中 core_conclusion 命中任一关键词的
+                MetaKnowledge 节点数 + 本地 metaknowledge.jsonl 中
+                "核心结论"命中任一关键词的条数（未导入图谱的新数据）。
                 """
                 if not keywords:
-                    return count_nodes("MetaKnowledge")
-                cond = " OR ".join([f"n.core_conclusion CONTAINS $kw{i}" for i in range(len(keywords))])
-                params = {f"kw{i}": kw for i, kw in enumerate(keywords)}
-                cypher = f"MATCH (n:MetaKnowledge) WHERE {cond} RETURN count(n) as total"
-                return count_query(cypher, **params)
+                    neo4j_count = count_nodes("MetaKnowledge")
+                else:
+                    cond = " OR ".join([f"n.core_conclusion CONTAINS $kw{i}" for i in range(len(keywords))])
+                    params = {f"kw{i}": kw for i, kw in enumerate(keywords)}
+                    cypher = f"MATCH (n:MetaKnowledge) WHERE {cond} RETURN count(n) as total"
+                    neo4j_count = count_query(cypher, **params)
+                return neo4j_count + len(match_local_metaknowledge(keywords))
+
+            def get_meta_cases(keywords, limit=5):
+                """
+                元知识案例 = 图谱 MetaKnowledge 案例 + 本地 jsonl 案例（合并返回）。
+                本地案例带 source='本地知识库' 标记，便于前端区分来源。
+                """
+                cases = []
+                try:
+                    if keywords:
+                        cond = " OR ".join([f"n.core_conclusion CONTAINS $kw{i}" for i in range(len(keywords))])
+                        params = {f"kw{i}": kw for i, kw in enumerate(keywords)}
+                        cypher = (
+                            f"MATCH (n:MetaKnowledge) WHERE {cond} "
+                            f"RETURN n.id as id, n.core_conclusion as conclusion, "
+                            f"n.risk_guidance as risk_guidance, n.related_event as related_event "
+                            f"LIMIT {limit}"
+                        )
+                    else:
+                        params = {}
+                        cypher = (
+                            f"MATCH (n:MetaKnowledge) "
+                            f"RETURN n.id as id, n.core_conclusion as conclusion, "
+                            f"n.risk_guidance as risk_guidance, n.related_event as related_event "
+                            f"LIMIT {limit}"
+                        )
+                    cases = list(graph.run(cypher, **params).data())[:limit]
+                except Exception as e:
+                    print(f"  元知识案例查询失败: {e}")
+                for m in match_local_metaknowledge(keywords)[:limit]:
+                    cases.append({
+                        'id': m.get('meta_id'),
+                        'conclusion': m.get('核心结论'),
+                        'risk_guidance': m.get('风险指导价值'),
+                        'related_event': m.get('相关事件'),
+                        'source': '本地知识库'
+                    })
+                return cases
 
             def count_violations(extra_where=""):
                 """
@@ -1450,34 +1574,19 @@ class RiskCaseDataView(APIView):
                     {
                         "name": "股债对冲效应",
                         "description": "股票与国债现货存在显著互相对冲效应，可作为资产配置工具",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '股票' OR n.core_conclusion CONTAINS '国债' OR n.core_conclusion CONTAINS '对冲'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['股票', '国债', '对冲']),
                         "count": count_metaknowledge(['股票', '国债', '对冲'])
                     },
                     {
                         "name": "灾难风险溢价",
                         "description": "灾难风险可解释中国股市约39.5%的股权溢价",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '灾难' OR n.core_conclusion CONTAINS '风险溢价' OR n.core_conclusion CONTAINS '尾部风险'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['灾难', '风险溢价', '尾部风险']),
                         "count": count_metaknowledge(['灾难', '风险溢价', '尾部风险'])
                     },
                     {
                         "name": "期货对冲局限",
                         "description": "股指期货与国债期货之间不存在显著对冲效应",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '期货' OR n.core_conclusion CONTAINS '股指期货' OR n.core_conclusion CONTAINS '国债期货'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['期货', '股指期货', '国债期货']),
                         "count": count_metaknowledge(['期货', '股指期货', '国债期货'])
                     }
                 ]
@@ -1517,12 +1626,7 @@ class RiskCaseDataView(APIView):
                     {
                         "name": "影子银行信用",
                         "description": "关联企业间的担保与借贷关系形成的隐性信用风险",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '影子银行' OR n.core_conclusion CONTAINS '隐性债务' OR n.core_conclusion CONTAINS '关联交易' OR n.core_conclusion CONTAINS '隐性信用'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['影子银行', '隐性债务', '关联交易', '隐性信用']),
                         "count": count_metaknowledge(['影子银行', '隐性债务', '关联交易', '隐性信用'])
                     }
                 ]
@@ -1552,23 +1656,13 @@ class RiskCaseDataView(APIView):
                     {
                         "name": "管理层策略性行为",
                         "description": "管理层可能策略性增加创新投入以吸引投资者关注并借机减持套现",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '管理层' OR n.core_conclusion CONTAINS '减持' OR n.core_conclusion CONTAINS '创新投入'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['管理层', '减持', '创新投入']),
                         "count": count_metaknowledge(['管理层', '减持', '创新投入'])
                     },
                     {
                         "name": "网络安全感知",
                         "description": "移动端投资者网络安全风险感知要求更高的风险补偿",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '网络安全' OR n.core_conclusion CONTAINS '移动端' OR n.core_conclusion CONTAINS '投资者行为'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['网络安全', '移动端', '投资者行为']),
                         "count": count_metaknowledge(['网络安全', '移动端', '投资者行为'])
                     }
                 ]
@@ -1584,34 +1678,19 @@ class RiskCaseDataView(APIView):
                     {
                         "name": "政策不确定性与现金持有",
                         "description": "经济政策不确定性上升会显著抑制企业投资并提高现金持有",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '政策不确定性' OR n.core_conclusion CONTAINS '现金持有' OR n.core_conclusion CONTAINS '企业投资'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['政策不确定性', '现金持有', '企业投资']),
                         "count": count_metaknowledge(['政策不确定性', '现金持有', '企业投资'])
                     },
                     {
                         "name": "跨境资本流动",
                         "description": "区域危机期间中国证券市场与发达市场一体化水平反而增强",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '跨境' OR n.core_conclusion CONTAINS '资本流动' OR n.core_conclusion CONTAINS '外资'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['跨境', '资本流动', '外资']),
                         "count": count_metaknowledge(['跨境', '资本流动', '外资'])
                     },
                     {
                         "name": "投资者行为",
                         "description": "移动端投资者网络安全风险感知越高，安全事件可能诱发赎回潮",
-                        "cases": get_sample_cases("""
-                            MATCH (n:MetaKnowledge)
-                            WHERE n.core_conclusion CONTAINS '投资者' OR n.core_conclusion CONTAINS '赎回' OR n.core_conclusion CONTAINS '行为'
-                            RETURN n.id as id, n.core_conclusion as conclusion, n.risk_guidance as risk_guidance, n.related_event as related_event
-                            LIMIT 5
-                        """),
+                        "cases": get_meta_cases(['投资者', '赎回', '行为']),
                         "count": count_metaknowledge(['投资者', '赎回', '行为'])
                     }
                 ]
@@ -1926,3 +2005,645 @@ class TestRelationQueryView(APIView):
             import traceback
             traceback.print_exc()
             return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+def _escape_cypher_identifier(name):
+    """反引号转义 Cypher 标签/属性名，防止注入"""
+    return '`' + str(name).replace('`', '``') + '`'
+
+
+def _escape_cypher_string(s):
+    """双引号转义 Cypher 字符串字面量，用于 row["字段名"] 形式的 map 取值"""
+    return '"' + str(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def _get_graph_schema(graph_ref):
+    """获取图谱现有节点标签与关系类型（元数据过程，无需扫描全图）"""
+    labels = {r['label'] for r in graph_ref.run("CALL db.labels()").data()}
+    rel_types = {r['relationshipType'] for r in graph_ref.run("CALL db.relationshipTypes()").data()}
+    return labels, rel_types
+
+
+class GraphSchemaView(APIView):
+    """
+    获取图谱 Schema：所有节点标签与关系类型（含数量，按数量降序）
+    供数据导入页面的实体类型/关系类型下拉框使用
+    """
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            label_rows = graph.run("""
+                MATCH (n)
+                UNWIND labels(n) AS label
+                RETURN label, count(*) AS cnt
+                ORDER BY cnt DESC
+            """).data()
+            rel_rows = graph.run("""
+                MATCH ()-[r]->()
+                RETURN type(r) AS relType, count(*) AS cnt
+                ORDER BY cnt DESC
+            """).data()
+            return JsonResponse({
+                'status': 'success',
+                'nodeLabels': [{'name': r['label'], 'count': r['cnt']} for r in label_rows],
+                'relationshipTypes': [{'name': r['relType'], 'count': r['cnt']} for r in rel_rows]
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+class StructuredImportView(APIView):
+    """
+    结构化数据导入API（CSV/Excel）
+    根据前端配置的字段映射生成 Cypher CREATE 语句，批量创建节点和关系
+    mode=preview: 只生成并返回 CREATE 语句与统计，不写入图谱
+    mode=execute: 分批执行 CREATE 写入，进度可通过 GET 轮询
+    """
+    permission_classes = []
+
+    def get(self, request):
+        # 前端轮询导入进度
+        return JsonResponse({'progress': cache.get('structured_import_progress', 0)})
+
+    def _import_relations_only(self, df, columns, relation_mappings, batch_size):
+        """
+        纯关系导入：不创建节点，只为图中已存在的节点创建关系
+        - 端点标签/属性在映射中显式指定（fromLabel/fromProp/toLabel/toProp）
+        - 支持 props: {关系属性名: 源字段} 写入关系属性
+        - 逐行执行并校验创建数，精确上报端点未匹配的行
+        """
+        if not relation_mappings:
+            return JsonResponse({'status': 'error', 'message': '关系导入模式需要至少一条关系映射'}, status=400)
+
+        existing_labels, existing_rel_types = _get_graph_schema(graph)
+
+        # 校验映射
+        for idx, r in enumerate(relation_mappings):
+            for key in ('fromField', 'fromLabel', 'fromProp', 'toField', 'toLabel', 'toProp', 'relType'):
+                if not r.get(key):
+                    return JsonResponse({'status': 'error', 'message': f'第 {idx + 1} 条关系映射缺少字段: {key}'}, status=400)
+            for key in ('fromField', 'toField'):
+                if r[key] not in columns:
+                    return JsonResponse({'status': 'error', 'message': f"关系映射源字段不存在: {r[key]}"}, status=400)
+            for key, valid, tip in (('fromLabel', existing_labels, '节点标签'), ('toLabel', existing_labels, '节点标签')):
+                if r[key] not in valid:
+                    return JsonResponse({'status': 'error', 'message': f"{tip}不存在于图谱: {r[key]}", 'validNodeLabels': sorted(valid)}, status=400)
+            if r['relType'] not in existing_rel_types:
+                return JsonResponse({'status': 'error', 'message': f"关系类型不存在于图谱: {r['relType']}", 'validRelationshipTypes': sorted(existing_rel_types)}, status=400)
+            for rp, sf in (r.get('props') or {}).items():
+                if sf not in columns:
+                    return JsonResponse({'status': 'error', 'message': f"关系属性源字段不存在: {rp} <- {sf}"}, status=400)
+
+        records = df.to_dict('records')
+        cache.set('structured_import_progress', 0)
+        total_created, failed, skipped_empty = 0, 0, 0
+        errors = []
+
+        try:
+            for done, r in enumerate(relation_mappings):
+                # 过滤端点为空的行
+                rows = [row for row in records
+                        if str(row.get(r['fromField'], '')).strip() and str(row.get(r['toField'], '')).strip()]
+                skipped_empty += len(records) - len(rows)
+
+                prop_clause = ', '.join(
+                    f"{_escape_cypher_identifier(rp)}: row[{_escape_cypher_string(sf)}]"
+                    for rp, sf in (r.get('props') or {}).items()
+                )
+                rel_props_sql = f' {{{prop_clause}}}' if prop_clause else ''
+                stmt = (
+                    f"UNWIND $rows AS row "
+                    f"MATCH (a:{_escape_cypher_identifier(r['fromLabel'])} {{"
+                    f"{_escape_cypher_identifier(r['fromProp'])}: row[{_escape_cypher_string(r['fromField'])}]}}) "
+                    f"MATCH (b:{_escape_cypher_identifier(r['toLabel'])} {{"
+                    f"{_escape_cypher_identifier(r['toProp'])}: row[{_escape_cypher_string(r['toField'])}]}}) "
+                    f"CREATE (a)-[rel:{_escape_cypher_identifier(r['relType'])}{rel_props_sql}]->(b) "
+                    f"RETURN count(rel) AS created"
+                )
+
+                # 逐行执行：MATCH 未命中时 CREATE 数为 0，可精确定位失败行
+                for row in rows:
+                    try:
+                        cursor = graph.run(stmt, rows=[row])
+                        data = cursor.data()
+                        n = data[0]['created'] if data else 0
+                        if n > 0:
+                            total_created += n
+                        else:
+                            failed += 1
+                            if len(errors) < 100:
+                                errors.append({'row': row, 'error': '起点或终点节点未在图谱中匹配到'})
+                    except Exception as e:
+                        failed += 1
+                        if len(errors) < 100:
+                            errors.append({'row': row, 'error': str(e)})
+                cache.set('structured_import_progress', int((done + 1) / len(relation_mappings) * 100))
+        except Exception as e:
+            cache.set('structured_import_progress', 0)
+            return JsonResponse({'status': 'error', 'message': f'关系导入执行失败: {e}'}, status=500)
+
+        cache.set('structured_import_progress', 100)
+        print(f"[StructuredImport:relations] 完成 - 关系: {total_created}, 失败: {failed}, 空端点跳过: {skipped_empty}")
+        return JsonResponse({
+            'status': 'success',
+            'mode': 'relations',
+            'totalRows': len(records),
+            'relationsCreated': total_created,
+            'failedRows': failed,
+            'skippedEmptyRows': skipped_empty,
+            'errors': errors
+        })
+
+    def post(self, request):
+        # 支持内联 records（JSON 数组）替代文件上传，供非结构化抽取结果回写等场景
+        records_json = request.POST.get('records')
+        if not records_json:
+            file = request.FILES.get('file')
+            if not file:
+                return JsonResponse({'status': 'error', 'message': '请上传文件或提供 records'}, status=400)
+
+        try:
+            mappings = json.loads(request.POST.get('mappings', '{}'))
+        except (TypeError, json.JSONDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'mappings 必须是合法 JSON'}, status=400)
+
+        entity_mappings = mappings.get('entityMappings') or []
+        relation_mappings = mappings.get('relationMappings') or []
+        mode = request.POST.get('mode', 'execute')
+        try:
+            batch_size = max(1, int(request.POST.get('batchSize', 1000)))
+        except (TypeError, ValueError):
+            batch_size = 1000
+
+        # 解析数据来源：内联 records 或上传文件
+        if records_json:
+            try:
+                df = pd.DataFrame(json.loads(records_json))
+            except (TypeError, json.JSONDecodeError) as e:
+                return JsonResponse({'status': 'error', 'message': f'records 解析失败: {e}'}, status=400)
+        else:
+            filename = file.name.lower()
+            try:
+                if filename.endswith('.csv'):
+                    df = pd.read_csv(file, keep_default_na=False)
+                elif filename.endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(file, keep_default_na=False)
+                else:
+                    return JsonResponse({'status': 'error', 'message': '仅支持 CSV、Excel 格式，需包含表头行'}, status=400)
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f'文件解析失败: {e}'}, status=400)
+
+        df = df.drop_duplicates().reset_index(drop=True)
+        columns = list(df.columns)
+
+        # 表头探测模式：仅返回列名，供前端生成默认字段映射
+        if mode == 'headers':
+            return JsonResponse({'status': 'success', 'columns': columns})
+
+        # ============ 纯关系导入模式 ============
+        # CSV 每行即一条关系，端点为图中已存在的节点（不创建节点）
+        # relationMappings 需显式指定: fromField/fromLabel/fromProp/toField/toLabel/toProp/relType
+        # 可选 props: {关系属性名: 源字段}
+        if mode == 'relations':
+            return self._import_relations_only(df, columns, relation_mappings, batch_size)
+
+        if not entity_mappings:
+            return JsonResponse({'status': 'error', 'message': '请至少配置一条实体映射'}, status=400)
+
+        # 校验实体映射的源字段
+        for m in entity_mappings:
+            if m.get('sourceField') not in columns:
+                return JsonResponse({'status': 'error', 'message': f"实体映射源字段不存在: {m.get('sourceField')}"}, status=400)
+            if not m.get('targetType') or not m.get('targetProp'):
+                return JsonResponse({'status': 'error', 'message': f"实体映射缺少实体类型或属性名: {m.get('sourceField')}"}, status=400)
+
+        # 源字段 -> (实体类型, 属性名)，用于关系端点定位节点
+        field_to_node = {m['sourceField']: (m['targetType'], m['targetProp']) for m in entity_mappings}
+
+        # 校验关系映射
+        for r in relation_mappings:
+            for key in ('fromField', 'toField'):
+                if r.get(key) not in field_to_node:
+                    return JsonResponse({'status': 'error', 'message': f"关系映射的 {key} 未配置对应实体映射: {r.get(key)}"}, status=400)
+            if not r.get('relType'):
+                return JsonResponse({'status': 'error', 'message': '关系映射缺少关系类型'}, status=400)
+
+        # 校验实体类型与关系类型必须为图谱已有类型，保证导入数据与现有本体一致
+        existing_labels, existing_rel_types = _get_graph_schema(graph)
+        bad_labels = sorted({m['targetType'] for m in entity_mappings} - existing_labels)
+        if bad_labels:
+            return JsonResponse({
+                'status': 'error',
+                'message': f"实体类型不存在于图谱: {', '.join(bad_labels)}",
+                'validNodeLabels': sorted(existing_labels)
+            }, status=400)
+        bad_rels = sorted({r['relType'] for r in relation_mappings} - existing_rel_types)
+        if bad_rels:
+            return JsonResponse({
+                'status': 'error',
+                'message': f"关系类型不存在于图谱: {', '.join(bad_rels)}",
+                'validRelationshipTypes': sorted(existing_rel_types)
+            }, status=400)
+
+        # 按实体类型分组生成节点 CREATE 语句
+        # 同一标签内重复的属性名只保留首个映射（如"公司名称"与"担保方"都映射到
+        # Company.name 时，建点用"公司名称"，"担保方"仅用于关系端点匹配），
+        # 从而支持 GUARANTEES 等公司间自引用关系的导入
+        node_groups = {}  # targetType -> [(targetProp, sourceField)]
+        for m in entity_mappings:
+            props = node_groups.setdefault(m['targetType'], [])
+            if not any(tp == m['targetProp'] for tp, _ in props):
+                props.append((m['targetProp'], m['sourceField']))
+
+        node_statements = []
+        for label, props in node_groups.items():
+            prop_clause = ', '.join(
+                f"{_escape_cypher_identifier(tp)}: row[{_escape_cypher_string(sf)}]"
+                for tp, sf in props
+            )
+            stmt = f"UNWIND $rows AS row CREATE (n:{_escape_cypher_identifier(label)} {{{prop_clause}}})"
+            node_statements.append({'targetType': label, 'cypher': stmt, 'props': props})
+
+        # 生成关系 CREATE 语句
+        relation_statements = []
+        for r in relation_mappings:
+            from_label, from_prop = field_to_node[r['fromField']]
+            to_label, to_prop = field_to_node[r['toField']]
+            stmt = (
+                f"UNWIND $rows AS row "
+                f"MATCH (a:{_escape_cypher_identifier(from_label)} {{"
+                f"{_escape_cypher_identifier(from_prop)}: row[{_escape_cypher_string(r['fromField'])}]}}) "
+                f"MATCH (b:{_escape_cypher_identifier(to_label)} {{"
+                f"{_escape_cypher_identifier(to_prop)}: row[{_escape_cypher_string(r['toField'])}]}}) "
+                f"CREATE (a)-[rel:{_escape_cypher_identifier(r['relType'])}]->(b) "
+                f"RETURN count(rel) AS created"
+            )
+            relation_statements.append({
+                'relType': r['relType'],
+                'cypher': stmt,
+                'fromField': r['fromField'],
+                'toField': r['toField']
+            })
+
+        records = df.to_dict('records')
+        total_rows = len(records)
+
+        # 预览模式：返回生成的语句与统计，不写库
+        if mode == 'preview':
+            return JsonResponse({
+                'status': 'success',
+                'mode': 'preview',
+                'totalRows': total_rows,
+                'columns': columns,
+                'nodeCount': total_rows * len(node_groups),
+                'relationCount': total_rows * len(relation_statements),
+                'nodeStatements': node_statements,
+                'relationStatements': relation_statements,
+                'sampleRows': records[:5],
+                'validNodeLabels': sorted(existing_labels),
+                'validRelationshipTypes': sorted(existing_rel_types)
+            })
+
+        # 执行模式：分批执行 CREATE
+        cache.set('structured_import_progress', 0)
+        stats = {'nodesCreated': 0, 'relationsCreated': 0, 'failedRows': 0}
+        errors = []
+        steps = len(node_statements) + len(relation_statements)
+        done_steps = 0
+
+        def run_in_batches(stmt, rows):
+            """分批执行，批失败时降级为逐行执行以定位坏数据，返回(成功数, 失败数)"""
+            created, failed = 0, 0
+            for i in range(0, len(rows), batch_size):
+                batch = rows[i:i + batch_size]
+                try:
+                    cursor = graph.run(stmt, rows=batch)
+                    cursor.data()  # 消费游标后才能读取统计
+                    summary = cursor.stats()
+                    created += summary.get('nodes_created', 0) + summary.get('relationships_created', 0)
+                except Exception:
+                    # 降级逐行执行，收集失败行
+                    for row in batch:
+                        try:
+                            cursor = graph.run(stmt, rows=[row])
+                            cursor.data()
+                            summary = cursor.stats()
+                            created += summary.get('nodes_created', 0) + summary.get('relationships_created', 0)
+                        except Exception as row_e:
+                            failed += 1
+                            if len(errors) < 100:
+                                errors.append({'row': row, 'error': str(row_e)})
+            return created, failed
+
+        try:
+            # 1. 创建节点
+            for ns in node_statements:
+                created, failed = run_in_batches(ns['cypher'], records)
+                stats['nodesCreated'] += created
+                stats['failedRows'] += failed
+                done_steps += 1
+                cache.set('structured_import_progress', int(done_steps / steps * 100))
+
+            # 2. 创建关系（过滤端点为空的行）
+            for rs in relation_statements:
+                rel_rows = [
+                    row for row in records
+                    if str(row.get(rs['fromField'], '')).strip() and str(row.get(rs['toField'], '')).strip()
+                ]
+                created, failed = run_in_batches(rs['cypher'], rel_rows)
+                stats['relationsCreated'] += created
+                stats['failedRows'] += failed
+                done_steps += 1
+                cache.set('structured_import_progress', int(done_steps / steps * 100))
+        except Exception as e:
+            cache.set('structured_import_progress', 0)
+            return JsonResponse({'status': 'error', 'message': f'导入执行失败: {e}'}, status=500)
+
+        cache.set('structured_import_progress', 100)
+        print(f"[StructuredImport] 完成 - 节点: {stats['nodesCreated']}, 关系: {stats['relationsCreated']}, 失败: {stats['failedRows']}")
+        return JsonResponse({
+            'status': 'success',
+            'mode': 'execute',
+            'totalRows': total_rows,
+            **stats,
+            'errors': errors
+        })
+
+# 实体标签 -> 节点名属性键（抽取结果回写图谱时的对齐键，来自图谱真实 schema）
+EXTRACT_NAME_PROP = {
+    'Company': '公司中文名称',
+    'City': '城市',
+    'A_security': '证券简称',
+    'G_security': '证券简称',
+    'B_security': '证券简称',
+    'Litigation': None,   # 案件节点无唯一名称键，v1 只建点不参与关系端点匹配
+    'Violation': None,
+}
+
+# 文本可解析的文档
+def _parse_document(file):
+    """按扩展名解析文档为纯文本"""
+    name = file.name.lower()
+    if name.endswith('.txt') or name.endswith('.md'):
+        return file.read().decode('utf-8', errors='ignore')
+    if name.endswith('.html') or name.endswith('.htm'):
+        from bs4 import BeautifulSoup
+        html = file.read().decode('utf-8', errors='ignore')
+        return BeautifulSoup(html, 'html.parser').get_text(separator='\n')
+    if name.endswith('.docx'):
+        import docx
+        d = docx.Document(file)
+        return '\n'.join(p.text for p in d.paragraphs if p.text.strip())
+    if name.endswith('.pdf'):
+        from pypdf import PdfReader
+        reader = PdfReader(file)
+        return '\n'.join((page.extract_text() or '') for page in reader.pages)
+    if name.endswith('.doc'):
+        raise ValueError('暂不支持旧版 .doc，请另存为 .docx')
+    raise ValueError('不支持的文档格式，支持 PDF/Word/TXT/HTML')
+
+
+def _chunk_text(text, size=1600, overlap=150):
+    """按字符分块，带重叠窗口"""
+    text = text.strip()
+    chunks = []
+    start = 0
+    while start < len(text):
+        chunks.append(text[start:start + size])
+        start += size - overlap
+    return [c for c in chunks if len(c.strip()) > 30]
+
+
+def _ollama_extract(chunk_text, model):
+    """调用本地 Ollama 抽取一个文本块，返回 {entities, relations}（已过滤非法类型）"""
+    import requests
+    from .extraction_prompt import EXTRACTION_SYSTEM_PROMPT, build_extraction_prompt, VALID_LABELS, VALID_RELATIONS
+    resp = requests.post('http://localhost:11434/api/chat', json={
+        'model': model or 'qwen3:32b',
+        'messages': [
+            {'role': 'system', 'content': EXTRACTION_SYSTEM_PROMPT},
+            {'role': 'user', 'content': build_extraction_prompt(chunk_text)},
+        ],
+        'stream': False,
+        'format': 'json',
+        'options': {'temperature': 0.1, 'num_ctx': 8192},
+    }, timeout=600)
+    resp.raise_for_status()
+    data = json.loads(resp.json()['message']['content'])
+    labels = set(VALID_LABELS)
+    rel_types = set(VALID_RELATIONS)
+    entities = [e for e in data.get('entities', []) if e.get('label') in labels and e.get('name')]
+    id_map = {e.get('id'): e for e in entities}
+    relations = []
+    for r in data.get('relations', []):
+        if r.get('type') not in rel_types:
+            continue
+        f, t = id_map.get(r.get('from')), id_map.get(r.get('to'))
+        if not f or not t:
+            continue
+        relations.append({'from': f['name'], 'to': t['name'], 'type': r['type'], 'props': r.get('props') or {}})
+    return entities, relations
+
+
+class UnstructuredExtractView(APIView):
+    """
+    半/非结构化文档抽取API
+    POST: 上传文档(txt/pdf/docx/html)，后台线程分块调用本地 Ollama(qwen3:32b)
+          按图谱本体抽取实体/关系，返回 task_id
+    GET ?task_id=xx: 轮询进度与结果
+    结果结构: {entities: [{text,type,confidence,props}], relations: [{subject,predicate,object,confidence,props}]}
+    """
+    permission_classes = []
+
+    def get(self, request):
+        task_id = request.GET.get('task_id', '')
+        state = cache.get(f'extract_task_{task_id}') if task_id else None
+        if not state:
+            return JsonResponse({'status': 'error', 'message': '任务不存在或已过期'}, status=404)
+        return JsonResponse(state)
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return JsonResponse({'status': 'error', 'message': '请上传文档'}, status=400)
+        model = request.POST.get('model', 'qwen3:32b')
+
+        try:
+            text = _parse_document(file)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'文档解析失败: {e}'}, status=400)
+        if not text.strip():
+            return JsonResponse({'status': 'error', 'message': '文档内容为空'}, status=400)
+
+        chunks = _chunk_text(text)
+        task_id = f'ext_{datetime.now().strftime("%Y%m%d%H%M%S")}_{id(file) % 10000}'
+        cache.set(f'extract_task_{task_id}', {
+            'status': 'running', 'progress': 0, 'stage': '准备抽取',
+            'totalChunks': len(chunks), 'doneChunks': 0,
+        }, timeout=7200)
+
+        thread = threading.Thread(target=self._run, args=(task_id, chunks, model), daemon=True)
+        thread.start()
+        return JsonResponse({'status': 'success', 'taskId': task_id, 'totalChunks': len(chunks)})
+
+    def _run(self, task_id, chunks, model):
+        def update(**kw):
+            state = cache.get(f'extract_task_{task_id}') or {}
+            state.update(kw)
+            cache.set(f'extract_task_{task_id}', state, timeout=7200)
+
+        all_entities = {}   # (name,label) -> props 合并
+        all_relations = {}  # (from,to,type) -> props
+        start_ts = time.time()
+        try:
+            for i, chunk in enumerate(chunks):
+                elapsed = int(time.time() - start_ts)
+                update(stage=f'抽取第 {i + 1}/{len(chunks)} 块（已用时 {elapsed}s，单块约 1-3 分钟）',
+                       progress=max(2, int(i / len(chunks) * 95)))
+                try:
+                    entities, relations = _ollama_extract(chunk, model)
+                except Exception as e:
+                    update(stage=f'第 {i + 1} 块抽取失败已跳过: {e}')
+                    continue
+                for e in entities:
+                    key = (e['name'], e['label'])
+                    props = all_entities.get(key, {})
+                    props.update(e.get('props') or {})
+                    all_entities[key] = props
+                for r in relations:
+                    key = (r['from'], r['to'], r['type'])
+                    props = all_relations.get(key, {})
+                    props.update(r.get('props'))
+                    all_relations[key] = props
+                update(doneChunks=i + 1, progress=int((i + 1) / len(chunks) * 95))
+
+            result = {
+                'status': 'success', 'progress': 100, 'stage': '完成',
+                'totalChunks': len(chunks), 'doneChunks': len(chunks),
+                'result': {
+                    'entities': [
+                        {'text': name, 'type': label, 'confidence': 1.0, 'props': props}
+                        for (name, label), props in all_entities.items()
+                    ],
+                    'relations': [
+                        {'subject': f, 'predicate': t, 'object': o, 'confidence': 1.0, 'props': props}
+                        for (f, o, t), props in all_relations.items()
+                    ],
+                    'lowConfidence': [],
+                    'nameProps': EXTRACT_NAME_PROP,
+                },
+            }
+            cache.set(f'extract_task_{task_id}', result, timeout=7200)
+        except Exception as e:
+            update(status='error', stage=f'抽取失败: {e}')
+
+
+# ============================================================
+# 元知识库页面：读取金融元知识库数据（library_report.md 介绍，
+# papers.jsonl / metaknowledge.jsonl），提供总览统计与条目浏览
+# ============================================================
+META_LIB_DIR = '/home/wangluyi/MetaKnowledgeExtraction/data/metaknowledge_library'
+
+_meta_lib_cache = {'mtime': None, 'stats': None, 'items': []}
+
+def _load_meta_library():
+    """读取 papers.jsonl / metaknowledge.jsonl 并汇总统计（按目录修改时间缓存）"""
+    meta_path = os.path.join(META_LIB_DIR, 'metaknowledge.jsonl')
+    papers_path = os.path.join(META_LIB_DIR, 'papers.jsonl')
+    if not os.path.exists(meta_path):
+        return {'stats': None, 'items': []}
+    sig = os.path.getmtime(meta_path)
+    if _meta_lib_cache.get('mtime') == sig:
+        return {'stats': _meta_lib_cache['stats'], 'items': _meta_lib_cache['items']}
+
+    items = []
+    with open(meta_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                items.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    # 论文级统计
+    paper_count = 0
+    papers_with_meta = 0
+    per_paper_counts = []
+    if os.path.exists(papers_path):
+        with open(papers_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    p = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                paper_count += 1
+                mc = p.get('meta_count') or len(p.get('metaknowledge') or [])
+                if mc > 0:
+                    papers_with_meta += 1
+                per_paper_counts.append(mc)
+
+    field_names = ['核心结论', '前提条件', '关键证据', '风险指导价值', '相关事件']
+    field_stats = []
+    for fn in field_names:
+        vals = [it.get(fn) for it in items]
+        nonempty = [v for v in vals if v]
+        field_stats.append({
+            'field': fn,
+            'empty': len(items) - len(nonempty),
+            'avg_len': round(sum(len(v) for v in nonempty) / len(nonempty)) if nonempty else 0,
+        })
+
+    # 每篇元知识数量分布（0-5、5+）
+    dist = {}
+    for c in per_paper_counts:
+        key = str(min(c, 5)) + ('+' if c > 5 else '')
+        dist[key] = dist.get(key, 0) + 1
+
+    stats = {
+        'paper_count': paper_count,
+        'papers_with_meta': papers_with_meta,
+        'meta_total': len(items),
+        'avg_per_paper': round(len(items) / paper_count, 2) if paper_count else 0,
+        'max_per_paper': max(per_paper_counts) if per_paper_counts else 0,
+        'field_stats': field_stats,
+        'per_paper_dist': dist,
+    }
+    _meta_lib_cache['mtime'] = sig
+    _meta_lib_cache['stats'] = stats
+    _meta_lib_cache['items'] = items
+    return {'stats': stats, 'items': items}
+
+
+class MetaKnowledgeLibraryView(APIView):
+    """元知识库：总览统计 + 元知识条目（支持关键词过滤与分页）"""
+    def get(self, request):
+        data = _load_meta_library()
+        if data['stats'] is None:
+            return JsonResponse({'status': 'error', 'message': '元知识库文件不存在'}, status=404)
+        items = data['items']
+        kw = request.query_params.get('keyword', '').strip()
+        if kw:
+            items = [it for it in items if any(kw in (it.get(fn) or '') for fn in
+                     ['核心结论', '前提条件', '关键证据', '风险指导价值', '相关事件', 'file_name'])]
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 20))))
+        except ValueError:
+            page, page_size = 1, 20
+        total = len(items)
+        start = (page - 1) * page_size
+        page_items = items[start:start + page_size]
+        return JsonResponse({
+            'status': 'success',
+            'stats': data['stats'],
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'items': page_items,
+        })
